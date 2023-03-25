@@ -61,7 +61,7 @@ func VerifyToken(c *gin.Context) {
 	}
 
 	// Verify JWT token
-	userID, err := db.VerifyToken(tokenString, secretKey)
+	userID, err := db.VerifyToken(tokenString)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 		c.Abort()
