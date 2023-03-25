@@ -10,10 +10,10 @@ import (
 )
 
 // Get all timetables for a student
-func GetTimetables(c *gin.Context) {
+func GetTimetable(c *gin.Context) {
 	studentID := c.Param("student_id")
 
-	timetables, err := db.GetTimetables(studentID)
+	timetables, err := db.GetTimetable(studentID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -42,7 +42,7 @@ func CreateTimetable(c *gin.Context) {
 		return
 	}
 
-	id, err := db.CreateTimetable(timetable)
+	id, err := db.CreateTimetable(&timetable)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -73,7 +73,7 @@ func UpdateTimetable(c *gin.Context) {
 		return
 	}
 
-	if err := db.UpdateTimetable(timetable); err != nil {
+	if err := db.UpdateTimetable(&timetable); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})

@@ -4,9 +4,12 @@ package models
 type Timetable struct {
 	ID        int    `json:"id"`
 	StudentID string `json:"student_id"`
+	Teacher   string `json:"teacher"`
+	Location  string `json:"location"`
 	Day       string `json:"day"`
 	Period    string `json:"period"`
 	Subject   string `json:"subject"`
+	isPublic  bool   `json:"isPublic"`
 }
 
 // Timetables is a slice of Timetable objects

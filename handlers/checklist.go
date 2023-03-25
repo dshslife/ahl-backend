@@ -38,7 +38,7 @@ func CreateChecklistItem(c *gin.Context) {
 	}
 
 	// Parse request body
-	var item models.ChecklistItem
+	var item models.Checklist
 	err := c.BindJSON(&item)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
@@ -76,7 +76,7 @@ func UpdateChecklistItem(c *gin.Context) {
 	}
 
 	// Parse request body
-	var updatedItem models.ChecklistItem
+	var updatedItem models.Checklist
 	err = c.BindJSON(&updatedItem)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})

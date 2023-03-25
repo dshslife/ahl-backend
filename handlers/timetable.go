@@ -1,13 +1,11 @@
 package handlers
 
 import (
-	"net/http"
-	"strconv"
-	"time"
-
 	"github.com/gin-gonic/gin"
 	"github.com/username/schoolapp/db"
 	"github.com/username/schoolapp/models"
+	"net/http"
+	"strconv"
 )
 
 // GetTimetable handles the GET /timetable endpoint
@@ -20,7 +18,7 @@ func GetTimetable(c *gin.Context) {
 	}
 
 	// Get timetable from database
-	timetable, err := db.GetTimetable(userID.(int))
+	timetable, err := db.GetTimetable(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get timetable from database"})
 		return
@@ -39,7 +37,7 @@ func CreateTimetable(c *gin.Context) {
 	}
 
 	// Parse request body
-	var lesson models.Lesson
+	var lesson models.Timetable
 	err := c.BindJSON(&lesson)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
@@ -47,10 +45,11 @@ func CreateTimetable(c *gin.Context) {
 	}
 
 	// Set user ID for new lesson
-	lesson.UserID = userID.(int)
+	lesson.StudentID = userID.(string)
 
 	// Create lesson in database
-	err = db.CreateLesson(&lesson)
+	// id 안 씀 해결
+	id, err := db.CreateTimetable(&lesson)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create lesson"})
 		return
@@ -69,14 +68,14 @@ func UpdateTimetable(c *gin.Context) {
 	}
 
 	// Get existing lesson from database
-	lesson, err := db.GetLessonByID(id)
+	lesson, err := db.GetTimetableByID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Lesson not found"})
 		return
 	}
 
 	// Parse request body
-	var updatedLesson models.Lesson
+	var updatedLesson models.Timetable
 	err = c.BindJSON(&updatedLesson)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
@@ -84,15 +83,14 @@ func UpdateTimetable(c *gin.Context) {
 	}
 
 	// Update existing lesson with new data
-	lesson.Name = updatedLesson.Name
+	lesson.Subject = updatedLesson.Subject
 	lesson.Teacher = updatedLesson.Teacher
 	lesson.Location = updatedLesson.Location
-	lesson.StartTime = updatedLesson.StartTime
-	lesson.EndTime = updatedLesson.EndTime
+	lesson.Period = updatedLesson.Period
 	lesson.Day = updatedLesson.Day
 
 	// Update lesson in database
-	err = db.UpdateLesson(lesson)
+	err = db.UpdateTimetable(lesson)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update lesson"})
 		return
@@ -111,7 +109,7 @@ func DeleteTimetable(c *gin.Context) {
 	}
 
 	// Delete lesson from database
-	err = db.DeleteLesson(id)
+	err = db.DeleteTimetable(id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete lesson"})
 		return

@@ -21,7 +21,7 @@ func GetCafeteriaMenus(c *gin.Context) {
 	}
 
 	// Get cafeteria menus from database
-	menus, err := db.GetCafeteriaMenus(date)
+	menus, err := db.GetMenu(date)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get cafeteria menus from database"})
 		return

@@ -28,14 +28,20 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	hashpw := []byte(loginData.Password)
+	pw, err := utils.HashPassword(hashpw)
+	userpw := []byte(user.Password)
+
 	// Verify password
-	if !utils.VerifyPassword(loginData.Password, user.Password) {
+	if !utils.VerifyPassword(pw, userpw) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
 	}
 
+	// SecretKey 생성 파트는 맡겼다!
+
 	// Generate JWT token
-	token, err := utils.GenerateJWT(user.ID)
+	token, err := utils.GenerateJWT(user.ID, secretKey)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
@@ -55,7 +61,7 @@ func VerifyToken(c *gin.Context) {
 	}
 
 	// Verify JWT token
-	userID, err := db.VerifyToken(tokenString)
+	userID, err := db.VerifyToken(tokenString, secretKey)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 		c.Abort()

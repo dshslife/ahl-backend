@@ -29,11 +29,26 @@ func main() {
 	students := r.Group("/students")
 	{
 		students.GET("", controllers.GetStudents)
+		students.PUT("/config", controllers.UpdateStudent)
+	}
+
+	teachers := r.Group("/teachers")
+	{
+		teachers.GET("", controllers.GetTeachers)
+		teachers.PUT("/config", controllers.UpdateTeacher)
+	}
+
+	admins := r.Group("/admins")
+	{
+		admins.GET("/admin_only", controllers.GetAdmins)
+		admins.PUT("/admin_only/config", controllers.UpdateAdmin)
 	}
 
 	// Routes for handling timetables
 	timetable := r.Group("/timetable")
 	{
+		timetable.GET("/lock", controllers.LockTimetable)
+		timetable.GET("/unlock", controllers.UnLockTimetable)
 		timetable.GET("", controllers.GetTimetable)
 		timetable.POST("", controllers.CreateTimetable)
 		timetable.PUT("/:id", controllers.UpdateTimetable)
@@ -52,9 +67,17 @@ func main() {
 	// Routes for handling checklists
 	checklist := r.Group("/checklist")
 	{
+		checklist.GET("/lock", controllers.LockChecklist)
+		checklist.GET("/unlock", controllers.UnLockChecklist)
+		checklist.GET("", controllers.GetChecklistItem)
 		checklist.POST("", controllers.CreateChecklistItem)
 		checklist.PUT("/:id", controllers.UpdateChecklistItem)
 		checklist.DELETE("/:id", controllers.DeleteChecklistItem)
+	}
+
+	events := r.Group("/events")
+	{
+		events.GET("/:months", controllers.GetEvents)
 	}
 
 	// Run the server

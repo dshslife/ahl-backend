@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/username/schoolapp/db"
@@ -55,7 +56,7 @@ func CreateStudent(c *gin.Context) {
 		return
 	}
 
-	id, err := db.CreateStudent(student)
+	id, err := db.CreateStudent(&student)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -86,7 +87,7 @@ func UpdateStudent(c *gin.Context) {
 		return
 	}
 
-	if err := db.UpdateStudent(student); err != nil {
+	if err := db.UpdateStudent(&student); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
@@ -98,9 +99,17 @@ func UpdateStudent(c *gin.Context) {
 
 // Delete a student
 func DeleteStudent(c *gin.Context) {
-	id := c.Param("id")
+	// Parse lesson ID from request URL
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
 
-	err := db.DeleteStudent(id)
+	// Delete lesson from database
+	err = db.DeleteStudent(id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
