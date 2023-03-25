@@ -95,7 +95,7 @@ func VerifyPassword(hashedPassword, password []byte) bool {
 	return err == nil
 }
 
-func GenerateJWT(userId string, secretKey string) (string, error) {
+func GenerateJWT(userId int, secretKey string) (string, error) {
 	// Define the expiration time for the token
 	expirationTime := time.Now().Add(24 * time.Hour).Unix()
 
