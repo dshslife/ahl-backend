@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/username/schoolapp/db"
@@ -85,9 +86,17 @@ func UpdateTimetable(c *gin.Context) {
 
 // Delete a timetable
 func DeleteTimetable(c *gin.Context) {
-	id := c.Param("id")
+	// Parse lesson ID from request URL
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
 
-	err := db.DeleteTimetable(id)
+	// Delete lesson from database
+	err = db.DeleteTimetable(id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),

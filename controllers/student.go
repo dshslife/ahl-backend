@@ -99,7 +99,7 @@ func UpdateStudent(c *gin.Context) {
 
 // Delete a student
 func DeleteStudent(c *gin.Context) {
-	// Parse lesson ID from request URL
+	// Parse student ID from request URL
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -108,7 +108,7 @@ func DeleteStudent(c *gin.Context) {
 		return
 	}
 
-	// Delete lesson from database
+	// Delete student from database
 	err = db.DeleteStudent(id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{

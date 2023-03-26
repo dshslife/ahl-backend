@@ -46,8 +46,8 @@ func CreateChecklistItem(c *gin.Context) {
 	}
 
 	// Set user ID and completed status for new item
-	item.UserID = userID.(int)
-	item.Completed = false
+	item.UserID = userID.(string)
+	item.Complete = false
 
 	// Create checklist item in database
 	err = db.CreateChecklistItem(&item)
@@ -85,8 +85,7 @@ func UpdateChecklistItem(c *gin.Context) {
 
 	// Update existing item with new data
 	item.Title = updatedItem.Title
-	item.Description = updatedItem.Description
-	item.Completed = updatedItem.Completed
+	item.Items = updatedItem.Items
 
 	// Update item in database
 	err = db.UpdateChecklistItem(item)

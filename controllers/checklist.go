@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/username/schoolapp/db"
@@ -42,7 +43,7 @@ func CreateChecklist(c *gin.Context) {
 		return
 	}
 
-	id, err := db.CreateChecklist(checklist)
+	id, err := db.CreateChecklist(&checklist)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -73,7 +74,7 @@ func UpdateChecklist(c *gin.Context) {
 		return
 	}
 
-	if err := db.UpdateChecklist(checklist); err != nil {
+	if err := db.UpdateChecklist(&checklist); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
@@ -85,9 +86,17 @@ func UpdateChecklist(c *gin.Context) {
 
 // Delete a checklist
 func DeleteChecklist(c *gin.Context) {
-	id := c.Param("id")
+	// Parse checklist ID from request URL
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
 
-	err := db.DeleteChecklist(id)
+	// Delete checklist from database
+	err = db.DeleteChecklist(id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),

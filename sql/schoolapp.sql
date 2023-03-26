@@ -48,3 +48,11 @@ CREATE TABLE IF NOT EXISTS `cafeteria_menus` (
   `items` TEXT NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `checklists` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `title` STRING NOT NULL,
+    `UserID` VARCHAR(255) NOT NULL,
+    `items` TEXT NOT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

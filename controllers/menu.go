@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/username/schoolapp/db"
@@ -40,7 +41,7 @@ func CreateCafeteriaMenu(c *gin.Context) {
 		return
 	}
 
-	id, err := db.CreateCafeteriaMenu(menu)
+	id, err := db.CreateCafeteriaMenu(&menu)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -71,7 +72,7 @@ func UpdateCafeteriaMenu(c *gin.Context) {
 		return
 	}
 
-	if err := db.UpdateCafeteriaMenu(menu); err != nil {
+	if err := db.UpdateCafeteriaMenu(&menu); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
@@ -83,9 +84,17 @@ func UpdateCafeteriaMenu(c *gin.Context) {
 
 // Delete a cafeteria menu
 func DeleteCafeteriaMenu(c *gin.Context) {
-	id := c.Param("id")
+	// Parse menu ID from request URL
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
 
-	err := db.DeleteCafeteriaMenu(id)
+	// Delete menu from database
+	err = db.DeleteCafeteriaMenu(id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
