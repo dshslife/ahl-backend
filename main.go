@@ -69,10 +69,10 @@ func main() {
 	{
 		checklist.GET("/lock", controllers.LockChecklist)
 		checklist.GET("/unlock", controllers.UnLockChecklist)
-		checklist.GET("", controllers.GetChecklistItem)
-		checklist.POST("", controllers.CreateChecklistItem)
-		checklist.PUT("/:id", controllers.UpdateChecklistItem)
-		checklist.DELETE("/:id", controllers.DeleteChecklistItem)
+		checklist.GET("", controllers.GetChecklists)
+		checklist.POST("", controllers.CreateChecklist)
+		checklist.PUT("/:id", controllers.UpdateChecklist)
+		checklist.DELETE("/:id", controllers.DeleteChecklist)
 	}
 
 	events := r.Group("/events")

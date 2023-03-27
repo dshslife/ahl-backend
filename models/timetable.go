@@ -9,7 +9,7 @@ type Timetable struct {
 	Day       string `json:"day"`
 	Period    string `json:"period"`
 	Subject   string `json:"subject"`
-	isPublic  bool   `json:"isPublic"`
+	IsPublic  bool   `json:"isPublic"`
 }
 
 // Timetables is a slice of Timetable objects

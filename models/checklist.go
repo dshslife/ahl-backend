@@ -13,5 +13,5 @@ type Items struct {
 	ID       int    `json:"id"`
 	Text     string `json:"text"`
 	Complete bool   `json:"complete"`
-	isPublic bool   `json:"isPublic"`
+	IsPublic bool   `json:"isPublic"`
 }

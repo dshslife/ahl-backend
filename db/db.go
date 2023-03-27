@@ -210,7 +210,7 @@ func GetTimetable(studentID string) (models.Timetables, error) {
 	var timetables models.Timetables
 	for rows.Next() {
 		var timetable models.Timetable
-		err = rows.Scan(&timetable.ID, &timetable.StudentID, &timetable.Day, &timetable.Period, &timetable.Subject)
+		err = rows.Scan(&timetable.ID, &timetable.StudentID, &timetable.Day, &timetable.Period, &timetable.Subject, &timetable.IsPublic)
 		if err != nil {
 			return nil, err
 		}
@@ -234,7 +234,7 @@ func GetTimetableByID(studentID int) (*models.Timetable, error) {
 
 	// Scan rows into timetable objects
 	var timetable models.Timetable
-	err = rows.Scan(&timetable.ID, &timetable.StudentID, &timetable.Day, &timetable.Period, &timetable.Subject)
+	err = rows.Scan(&timetable.ID, &timetable.StudentID, &timetable.Day, &timetable.Period, &timetable.Subject, &timetable.IsPublic)
 	if err != nil {
 		return nil, err
 	}
@@ -245,10 +245,10 @@ func GetTimetableByID(studentID int) (*models.Timetable, error) {
 // CreateTimetable creates a new timetable
 func CreateTimetable(timetable *models.Timetable) (int64, error) {
 	// Prepare query
-	query := "INSERT INTO timetables (student_id, day, period, subject) VALUES (?, ?, ?, ?)"
+	query := "INSERT INTO timetables (student_id, day, period, subject, IsPublic) VALUES (?, ?, ?, ?, ?)"
 
 	// Execute query
-	result, err := db.Exec(query, timetable.StudentID, timetable.Day, timetable.Period, timetable.Subject)
+	result, err := db.Exec(query, timetable.StudentID, timetable.Day, timetable.Period, timetable.Subject, timetable.IsPublic)
 	if err != nil {
 		return 0, err
 	}
@@ -267,10 +267,10 @@ func CreateTimetable(timetable *models.Timetable) (int64, error) {
 // UpdateTimetable updates a timetable
 func UpdateTimetable(timetable *models.Timetable) error {
 	// Prepare query
-	query := "UPDATE timetables SET student_id = ?, day = ?, period = ?, subject = ? WHERE id = ?"
+	query := "UPDATE timetables SET student_id = ?, day = ?, period = ?, subject = ?, IsPublic = ? WHERE id = ?"
 
 	// Execute query
-	_, err := db.Exec(query, timetable.StudentID, timetable.Day, timetable.Period, timetable.Subject, timetable.ID)
+	_, err := db.Exec(query, timetable.StudentID, timetable.Day, timetable.Period, timetable.Subject, timetable.IsPublic, timetable.ID)
 	if err != nil {
 		return err
 	}
@@ -700,11 +700,11 @@ func CreateChecklist(checklist *models.Checklist) (int, error) {
 	}
 
 	// Prepare query to insert checklist items
-	itemQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete) VALUES (?, ?, ?, ?)"
+	itemQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete, IsPublic) VALUES (?, ?, ?, ?, ?)"
 
 	// Execute query to insert checklist items
 	for _, item := range checklist.Items {
-		_, err = tx.Exec(itemQuery, checklistID, item.ID, item.Text, item.Complete)
+		_, err = tx.Exec(itemQuery, checklistID, item.ID, item.Text, item.Complete, item.IsPublic)
 		if err != nil {
 			tx.Rollback()
 			return -1, err
@@ -750,11 +750,11 @@ func UpdateChecklist(checklist *models.Checklist) error {
 	}
 
 	// Prepare query to insert new checklist items
-	insertItemsQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete) VALUES (?, ?, ?, ?)"
+	insertItemsQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete, IsPublic) VALUES (?, ?, ?, ?, ?)"
 
 	// Execute query to insert new checklist items
 	for _, item := range checklist.Items {
-		_, err = tx.Exec(insertItemsQuery, checklist.ID, item.ID, item.Text, item.Complete)
+		_, err = tx.Exec(insertItemsQuery, checklist.ID, item.ID, item.Text, item.Complete, item.IsPublic)
 		if err != nil {
 			tx.Rollback()
 			return err
@@ -810,6 +810,44 @@ func DeleteChecklist(id int) error {
 }
 
 // GetChecklistItems returns the checklist items
+func GetChecklistItemByID(id int) (*models.Checklist, error) {
+	// Prepare query
+	query := "SELECT * FROM checklist WHERE id = ?"
+
+	// Execute query
+	row := db.QueryRow(query, id)
+
+	// Scan row into checklist object
+	var checklist models.Checklist
+	err := row.Scan(&checklist.ID, &checklist.UserID, &checklist.Title)
+	if err != nil {
+		return nil, err
+	}
+
+	// Prepare query to get checklist items
+	query = "SELECT * FROM checklist_items WHERE id = ?"
+
+	// Execute query
+	rows, err := db.Query(query, checklist.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Scan rows into item objects and add them to the checklist
+	for rows.Next() {
+		var item models.Items
+		err = rows.Scan(&item.ID, &item.Text, &item.Complete, &item.IsPublic)
+		if err != nil {
+			return nil, err
+		}
+
+		checklist.Items = append(checklist.Items, item)
+	}
+
+	return &checklist, nil
+}
+
+// GetChecklistItems returns the checklist items
 func GetChecklistItems(id int) (*models.Checklist, error) {
 	// Prepare query
 	query := "SELECT * FROM checklist WHERE id = ?"
@@ -836,7 +874,7 @@ func GetChecklistItems(id int) (*models.Checklist, error) {
 	// Scan rows into item objects and add them to the checklist
 	for rows.Next() {
 		var item models.Items
-		err = rows.Scan(&item.ID, &item.Text, &item.Complete)
+		err = rows.Scan(&item.ID, &item.Text, &item.Complete, &item.IsPublic)
 		if err != nil {
 			return nil, err
 		}
@@ -873,11 +911,11 @@ func CreateChecklistItem(checklist *models.Checklist) error {
 	}
 
 	// Prepare query to insert checklist items
-	itemQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete) VALUES (?, ?, ?, ?)"
+	itemQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete, IsPublic) VALUES (?, ?, ?, ?, ?)"
 
 	// Execute query to insert checklist items
 	for _, item := range checklist.Items {
-		_, err = tx.Exec(itemQuery, checklistID, item.ID, item.Text, item.Complete)
+		_, err = tx.Exec(itemQuery, checklistID, item.ID, item.Text, item.Complete, item.IsPublic)
 		if err != nil {
 			tx.Rollback()
 			return err
@@ -923,11 +961,11 @@ func UpdateChecklistItem(checklist *models.Checklist) error {
 	}
 
 	// Prepare query to insert new checklist items
-	insertItemsQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete) VALUES (?, ?, ?, ?)"
+	insertItemsQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete, IsPublic) VALUES (?, ?, ?, ?, ?)"
 
 	// Execute query to insert new checklist items
 	for _, item := range checklist.Items {
-		_, err = tx.Exec(insertItemsQuery, checklist.ID, item.ID, item.Text, item.Complete)
+		_, err = tx.Exec(insertItemsQuery, checklist.ID, item.ID, item.Text, item.Complete, item.IsPublic)
 		if err != nil {
 			tx.Rollback()
 			return err

@@ -88,6 +88,7 @@ func UpdateTimetable(c *gin.Context) {
 	lesson.Location = updatedLesson.Location
 	lesson.Period = updatedLesson.Period
 	lesson.Day = updatedLesson.Day
+	lesson.IsPublic = updatedLesson.IsPublic
 
 	// Update lesson in database
 	err = db.UpdateTimetable(lesson)

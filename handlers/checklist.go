@@ -45,9 +45,14 @@ func CreateChecklistItem(c *gin.Context) {
 		return
 	}
 
+	// Execute query to insert checklist items
+	for _, items := range item.Items {
+		items.Complete = false
+		item.Items = append(item.Items, items)
+	}
+
 	// Set user ID and completed status for new item
 	item.UserID = userID.(string)
-	item.Complete = false
 
 	// Create checklist item in database
 	err = db.CreateChecklistItem(&item)
