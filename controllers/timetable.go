@@ -10,6 +10,42 @@ import (
 	"github.com/username/schoolapp/utils"
 )
 
+// Lock the timetable
+func LockTimetable(c *gin.Context) {
+	studentID := c.Param("student_id")
+
+	var timetable models.Timetable
+	timetables, err := db.GetTimetable(studentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	timetable.IsPublic = false
+	timetables = append(timetables, timetable)
+
+	c.JSON(http.StatusOK, timetables)
+}
+
+// UnLock the timetable
+func UnLockTimetable(c *gin.Context) {
+	studentID := c.Param("student_id")
+
+	var timetable models.Timetable
+	timetables, err := db.GetTimetable(studentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	timetable.IsPublic = true
+	timetables = append(timetables, timetable)
+
+	c.JSON(http.StatusOK, timetables)
+}
+
 // Get all timetables for a student
 func GetTimetable(c *gin.Context) {
 	studentID := c.Param("student_id")

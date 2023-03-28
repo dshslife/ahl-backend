@@ -10,6 +10,46 @@ import (
 	"github.com/username/schoolapp/utils"
 )
 
+// Lock the timetable
+func LockChecklist(c *gin.Context) {
+	studentID := c.Param("student_id")
+
+	var checklist models.Checklist
+	checklists, err := db.GetChecklists(studentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	for _, item := range checklist.Items {
+		item.IsPublic = false
+		checklists.Items = append(checklists.Items, item)
+	}
+
+	c.JSON(http.StatusOK, checklists)
+}
+
+// UnLock the checklist
+func UnLockChecklist(c *gin.Context) {
+	studentID := c.Param("student_id")
+
+	var checklist models.Checklist
+	checklists, err := db.GetChecklists(studentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	for _, item := range checklist.Items {
+		item.IsPublic = true
+		checklists.Items = append(checklists.Items, item)
+	}
+
+	c.JSON(http.StatusOK, checklists)
+}
+
 // Get all checklists for a student
 func GetChecklists(c *gin.Context) {
 	studentID := c.Param("student_id")
