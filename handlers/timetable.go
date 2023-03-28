@@ -48,8 +48,7 @@ func CreateTimetable(c *gin.Context) {
 	lesson.StudentID = userID.(string)
 
 	// Create lesson in database
-	// id 안 씀 해결
-	id, err := db.CreateTimetable(&lesson)
+	_, err = db.CreateTimetable(&lesson)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create lesson"})
 		return
