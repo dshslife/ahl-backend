@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/username/schoolapp/handlers"
 	"log"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/username/schoolapp/controllers"
 	"github.com/username/schoolapp/middlewares"
 )
 
@@ -28,56 +28,56 @@ func main() {
 	// Routes for handling students
 	students := r.Group("/students")
 	{
-		students.GET("", controllers.GetStudents)
-		students.PUT("/config", controllers.UpdateStudent)
+		students.GET("", handlers.GetStudents)
+		students.PUT("/config", handlers.UpdateStudent)
 	}
 
 	teachers := r.Group("/teachers")
 	{
-		teachers.GET("", controllers.GetTeachers)
-		teachers.PUT("/config", controllers.UpdateTeacher)
+		teachers.GET("", handlers.GetTeachers)
+		teachers.PUT("/config", handlers.UpdateTeacher)
 	}
 
 	admins := r.Group("/admins")
 	{
-		admins.GET("/admin_only", controllers.GetAdmins)
-		admins.PUT("/admin_only/config", controllers.UpdateAdmin)
+		admins.GET("/admin_only", handlers.GetAdmins)
+		admins.PUT("/admin_only/config", handlers.UpdateAdmin)
 	}
 
 	// Routes for handling timetables
 	timetable := r.Group("/timetable")
 	{
-		timetable.GET("/lock", controllers.LockTimetable)
-		timetable.GET("/unlock", controllers.UnLockTimetable)
-		timetable.GET("", controllers.GetTimetable)
-		timetable.POST("", controllers.CreateTimetable)
-		timetable.PUT("/:id", controllers.UpdateTimetable)
-		timetable.DELETE("/:id", controllers.DeleteTimetable)
+		timetable.GET("/lock", handlers.LockTimetable)
+		timetable.GET("/unlock", handlers.UnLockTimetable)
+		timetable.GET("", handlers.GetTimetable)
+		timetable.POST("", handlers.CreateTimetable)
+		timetable.PUT("/:id", handlers.UpdateTimetable)
+		timetable.DELETE("/:id", handlers.DeleteTimetable)
 	}
 
 	// Routes for handling cafeteria menus
 	cafeteriaMenus := r.Group("/cafeteria_menus")
 	{
-		cafeteriaMenus.GET("", controllers.GetCafeteriaMenus)
-		cafeteriaMenus.POST("", controllers.CreateCafeteriaMenu)
-		cafeteriaMenus.PUT("/:id", controllers.UpdateCafeteriaMenu)
-		cafeteriaMenus.DELETE("/:id", controllers.DeleteCafeteriaMenu)
+		cafeteriaMenus.GET("", handlers.GetCafeteriaMenus)
+		cafeteriaMenus.POST("", handlers.CreateCafeteriaMenu)
+		cafeteriaMenus.PUT("/:id", handlers.UpdateCafeteriaMenu)
+		cafeteriaMenus.DELETE("/:id", handlers.DeleteCafeteriaMenu)
 	}
 
 	// Routes for handling checklists
 	checklist := r.Group("/checklist")
 	{
-		checklist.GET("/lock", controllers.LockChecklist)
-		checklist.GET("/unlock", controllers.UnLockChecklist)
-		checklist.GET("", controllers.GetChecklists)
-		checklist.POST("", controllers.CreateChecklist)
-		checklist.PUT("/:id", controllers.UpdateChecklist)
-		checklist.DELETE("/:id", controllers.DeleteChecklist)
+		checklist.GET("/lock", handlers.LockChecklist)
+		checklist.GET("/unlock", handlers.UnLockChecklist)
+		checklist.GET("", handlers.GetChecklist)
+		checklist.POST("", handlers.CreateChecklistItem)
+		checklist.PUT("/:id", handlers.UpdateChecklistItem)
+		checklist.DELETE("/:id", handlers.DeleteChecklistItem)
 	}
 
 	events := r.Group("/events")
 	{
-		events.GET("/:months", controllers.GetEvents)
+		events.GET("/:months", handlers.GetEvents)
 	}
 
 	// Run the server

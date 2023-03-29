@@ -31,6 +31,40 @@ func ValidateStudent(student *models.Student) error {
 	return nil
 }
 
+// Validate a teacher object
+func ValidateTeacher(teacher *models.Teacher) error {
+	if teacher.Name == "" {
+		return errors.New("Name is required")
+	}
+
+	if teacher.Email == "" {
+		return errors.New("Email is required")
+	}
+
+	if !isEmailValid(teacher.Email) {
+		return errors.New("Invalid email address")
+	}
+
+	return nil
+}
+
+// Validate an admin object
+func ValidateAdmin(admin *models.Admin) error {
+	if admin.Name == "" {
+		return errors.New("Name is required")
+	}
+
+	if admin.Email == "" {
+		return errors.New("Email is required")
+	}
+
+	if !isEmailValid(admin.Email) {
+		return errors.New("Invalid email address")
+	}
+
+	return nil
+}
+
 // Validate a timetable object
 func ValidateTimetable(timetable *models.Timetable) error {
 	if timetable.StudentID == "" {

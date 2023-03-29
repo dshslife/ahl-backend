@@ -9,6 +9,56 @@ import (
 	"github.com/username/schoolapp/models"
 )
 
+// LockChecklist locks the checklist
+func LockChecklist(c *gin.Context) {
+	studentID, exists := c.Get("userID")
+
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user ID from context"})
+		return
+	}
+
+	checklist, err := db.GetChecklists(studentID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	// Execute query to insert checklist items
+	for _, item := range checklist.Items {
+		item.IsPublic = false
+		checklist.Items = append(checklist.Items, item)
+	}
+
+	c.JSON(http.StatusOK, checklist)
+}
+
+// UnLockChecklist unlocks the checklist
+func UnLockChecklist(c *gin.Context) {
+	studentID, exists := c.Get("userID")
+
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user ID from context"})
+		return
+	}
+
+	checklist, err := db.GetChecklists(studentID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	// Execute query to insert checklist items
+	for _, item := range checklist.Items {
+		item.IsPublic = true
+		checklist.Items = append(checklist.Items, item)
+	}
+
+	c.JSON(http.StatusOK, checklist)
+}
+
 // GetChecklist handles the GET /checklist endpoint
 func GetChecklist(c *gin.Context) {
 	// Get user ID from request context

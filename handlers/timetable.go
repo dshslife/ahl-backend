@@ -8,6 +8,48 @@ import (
 	"strconv"
 )
 
+// LockTimetable locks the timetable
+func LockTimetable(c *gin.Context) {
+	studentID, exists := c.Get("userID")
+
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user ID from context"})
+		return
+	}
+
+	timetable, err := db.GetTimetableByID(studentID.(int))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	timetable.IsPublic = false
+
+	c.JSON(http.StatusOK, timetable)
+}
+
+// UnLockTimetable unlocks the timetable
+func UnLockTimetable(c *gin.Context) {
+	studentID, exists := c.Get("userID")
+
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user ID from context"})
+		return
+	}
+
+	timetable, err := db.GetTimetableByID(studentID.(int))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	timetable.IsPublic = true
+
+	c.JSON(http.StatusOK, timetable)
+}
+
 // GetTimetable handles the GET /timetable endpoint
 func GetTimetable(c *gin.Context) {
 	// Get user ID from request context

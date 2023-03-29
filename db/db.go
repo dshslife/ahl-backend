@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/username/schoolapp/models"
 	"github.com/username/schoolapp/utils"
 	"log"
@@ -14,7 +15,7 @@ var db *sql.DB
 
 func createTables() {
 	// prepare query
-	query := "CREATE TABLE IF NOT EXISTS `users` (`id` INT(11) NOT NULL AUTO_INCREMENT, `google_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `teachers` (`id` INT(11) NOT NULL AUTO_INCREMENT, `google_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `admins` {`id` INT(11) NOT NULL AUTO_INCREMENT, `google_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)} ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;CREATE TABLE IF NOT EXISTS `students` (`id` INT(11) NOT NULL AUTO_INCREMENT, `name` VARCHAR(255) NOT NULL, `grade` INT(11) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `lessons` (`id` INT(11) NOT NULL AUTO_INCREMENT, `user_id` INT(11) NOT NULL, `name` VARCHAR(255) NOT NULL, `teacher` VARCHAR(255) NOT NULL, `location` VARCHAR(255) NOT NULL, `period` TIME NOT NULL, `day` INT(11) NOT NULL, PRIMARY KEY (`id`), FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `cafeteria_menus` ( `id` INT(11) NOT NULL AUTO_INCREMENT, `date` DATE NOT NULL, `meal` VARCHAR(255) NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `checklists` (`id` INT(11) NOT NULL AUTO_INCREMENT, `title` STRING NOT NULL, `UserID` VARCHAR(255) NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+	query := "CREATE TABLE IF NOT EXISTS `users` (`id` INT(11) NOT NULL AUTO_INCREMENT, `google_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `teachers` (`id` INT(11) NOT NULL AUTO_INCREMENT, `google_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, `access` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `admins` {`id` INT(11) NOT NULL AUTO_INCREMENT, `google_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, `access_to_all` VARCHAR(255) NOT NULL, `admin_access` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)} ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;CREATE TABLE IF NOT EXISTS `students` (`id` INT(11) NOT NULL AUTO_INCREMENT, `name` VARCHAR(255) NOT NULL, `grade` INT(11) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `lessons` (`id` INT(11) NOT NULL AUTO_INCREMENT, `user_id` INT(11) NOT NULL, `name` VARCHAR(255) NOT NULL, `teacher` VARCHAR(255) NOT NULL, `location` VARCHAR(255) NOT NULL, `period` TIME NOT NULL, `day` INT(11) NOT NULL, PRIMARY KEY (`id`), FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `cafeteria_menus` ( `id` INT(11) NOT NULL AUTO_INCREMENT, `date` DATE NOT NULL, `meal` VARCHAR(255) NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `checklists` (`id` INT(11) NOT NULL AUTO_INCREMENT, `title` STRING NOT NULL, `UserID` VARCHAR(255) NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
 
 	// Execute query
 	db.QueryRow(query)
@@ -64,13 +65,15 @@ func Close() {
 }
 
 // VerifyToken verifies a JWT token and returns the user ID
-// 제발 SecretKey 생성 좀 만들어줘요
 func VerifyToken(token string) (string, error) {
 	// Verify the JWT token
-	claims, err := utils.VerifyJWT(token, SecretKey)
+	SecretKey := os.Getenv("SECRET_KEY")
+	VerifiedToken, err := utils.VerifyJWT(token, SecretKey)
 	if err != nil {
 		return "", err
 	}
+
+	claims := VerifiedToken.Claims.(jwt.MapClaims)
 
 	// Extract the user ID from the token claims
 	userID, ok := claims["user_id"].(string)
@@ -185,7 +188,7 @@ func DeleteStudent(id int) error {
 	return nil
 }
 
-// Get all students
+/*// Get all students
 func GetStudents() (*models.Student, error) {
 	students, err := GetAllStudents()
 	if err != nil {
@@ -193,6 +196,178 @@ func GetStudents() (*models.Student, error) {
 	}
 
 	return students, err
+}*/
+
+// GetAllTeachers returns all teachers
+func GetAllTeachers() (*models.Teacher, error) {
+	// Prepare query
+	query := "SELECT * FROM teachers"
+
+	// Execute query
+	row := db.QueryRow(query)
+
+	// Scan row into teacher object
+	var teacher models.Teacher
+	err := row.Scan(&teacher.ID, &teacher.Name, &teacher.Email, &teacher.Access)
+	if err != nil {
+		return nil, err
+	}
+
+	return &teacher, nil
+}
+
+// GetTeacherByID returns a teacher by ID
+func GetTeacherByID(id string) (*models.Teacher, error) {
+	// Prepare query
+	query := "SELECT * FROM teachers WHERE id = ?"
+
+	// Execute query
+	row := db.QueryRow(query, id)
+
+	// Scan row into teacher object
+	var teacher models.Teacher
+	err := row.Scan(&teacher.ID, &teacher.Name, &teacher.Email, &teacher.Access)
+	if err != nil {
+		return nil, err
+	}
+
+	return &teacher, nil
+}
+
+// CreateTeacher creates a new teacher
+func CreateTeacher(teacher *models.Teacher) (int64, error) {
+	// Prepare query
+	query := "INSERT INTO teachers (id, name, email, access) VALUES (?, ?, ?, ?)"
+
+	// Execute query
+	result, err := db.Exec(query, teacher.ID, teacher.Name, teacher.Email, teacher.Access)
+	if err != nil {
+		return 0, err
+	}
+
+	// Get the ID of the newly created student
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+
+	teacher.ID = int(id)
+
+	return id, nil
+}
+
+// UpdateTeacher updates a teacher
+func UpdateTeacher(teacher *models.Teacher) error {
+	// Prepare query
+	query := "UPDATE teachers SET name = ?, email = ?, access = ? WHERE id = ?"
+
+	// Execute query
+	_, err := db.Exec(query, teacher.Name, teacher.Email, teacher.Access, teacher.ID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteTeacher deletes a teacher by ID
+func DeleteTeacher(id int) error {
+	// Prepare query
+	query := "DELETE FROM teachers WHERE id = ?"
+
+	// Execute query
+	_, err := db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetAllAdmins returns all admins
+func GetAllAdmins() (*models.Admin, error) {
+	// Prepare query
+	query := "SELECT * FROM admins"
+
+	// Execute query
+	row := db.QueryRow(query)
+
+	// Scan row into admin object
+	var admin models.Admin
+	err := row.Scan(&admin.ID, &admin.Name, &admin.Email, &admin.AccessToAll, &admin.AdminAccess)
+	if err != nil {
+		return nil, err
+	}
+
+	return &admin, nil
+}
+
+// GetAdminByID returns an admin by ID
+func GetAdminByID(id string) (*models.Admin, error) {
+	// Prepare query
+	query := "SELECT * FROM admins WHERE id = ?"
+
+	// Execute query
+	row := db.QueryRow(query, id)
+
+	// Scan row into admin object
+	var admin models.Admin
+	err := row.Scan(&admin.ID, &admin.Name, &admin.Email, &admin.AccessToAll, &admin.AdminAccess)
+	if err != nil {
+		return nil, err
+	}
+
+	return &admin, nil
+}
+
+// CreateAdmin creates a new admin
+func CreateAdmin(admin *models.Admin) (int64, error) {
+	// Prepare query
+	query := "INSERT INTO admins (id, name, email, access_to_all, admin_access) VALUES (?, ?, ?, ?, ?)"
+
+	// Execute query
+	result, err := db.Exec(query, admin.ID, admin.Name, admin.Email, admin.AccessToAll, admin.AdminAccess)
+	if err != nil {
+		return 0, err
+	}
+
+	// Get the ID of the newly created student
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+
+	admin.ID = int(id)
+
+	return id, nil
+}
+
+// UpdateAdmin updates an admin
+func UpdateAdmin(admin *models.Admin) error {
+	// Prepare query
+	query := "UPDATE admins SET name = ?, email = ?, access_to_all = ?, admin_access = ? WHERE id = ?"
+
+	// Execute query
+	_, err := db.Exec(query, admin.Name, admin.Email, admin.AccessToAll, admin.AdminAccess, admin.ID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteAdmin deletes an admin by ID
+func DeleteAdmin(id int) error {
+	// Prepare query
+	query := "DELETE FROM admins WHERE id = ?"
+
+	// Execute query
+	_, err := db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetTimetable returns a list of timetables for a student

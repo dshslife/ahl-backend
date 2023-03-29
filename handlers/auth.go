@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/username/schoolapp/db"
@@ -38,10 +39,9 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// SecretKey 생성 파트는 맡겼다!
-
 	// Generate JWT token
-	token, err := utils.GenerateJWT(user.ID, secretKey)
+	SecretKey := os.Getenv("SECRET_KEY")
+	token, err := utils.GenerateJWT(user.ID, SecretKey)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
