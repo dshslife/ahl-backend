@@ -59,3 +59,11 @@ CREATE TABLE IF NOT EXISTS `checklists` (
     `items` TEXT NOT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `schoolevents` {
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `month` INT(11) NOT NULL,
+    `school` STRING NOT NULL,
+    `events` VARCHAR(255) NOT NULL,
+    PRIMARY KEY (`month`)
+} ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

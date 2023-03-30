@@ -22,8 +22,14 @@ func main() {
 	r := gin.Default()
 
 	// Use authentication middleware for protected endpoints
-	authMiddleware := middlewares.NewAuthMiddleware()
-	r.Use(authMiddleware.MiddlewareFunc())
+	r.Use(middlewares.Auth())
+	r.Use(middlewares.VerifyToken)
+
+	// Routes for handling authentication
+	auth := r.Group("/auth")
+	{
+		auth.POST("/login", handlers.Login)
+	}
 
 	// Routes for handling students
 	students := r.Group("/students")

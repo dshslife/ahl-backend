@@ -33,3 +33,27 @@ func Auth() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// VerifyToken handles middleware to verify the JWT token in the request header
+func VerifyToken(c *gin.Context) {
+	// Get JWT token from request header
+	tokenString := c.GetHeader("Authorization")
+	if tokenString == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing authorization header"})
+		c.Abort()
+		return
+	}
+
+	// Verify JWT token
+	userID, err := db.VerifyToken(tokenString)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		c.Abort()
+		return
+	}
+
+	// Set user ID in request context
+	c.Set("userID", userID)
+
+	c.Next()
+}

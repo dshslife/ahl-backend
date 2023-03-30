@@ -15,7 +15,7 @@ var db *sql.DB
 
 func createTables() {
 	// prepare query
-	query := "CREATE TABLE IF NOT EXISTS `users` (`id` INT(11) NOT NULL AUTO_INCREMENT, `google_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `teachers` (`id` INT(11) NOT NULL AUTO_INCREMENT, `google_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, `access` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `admins` {`id` INT(11) NOT NULL AUTO_INCREMENT, `google_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, `access_to_all` VARCHAR(255) NOT NULL, `admin_access` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)} ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;CREATE TABLE IF NOT EXISTS `students` (`id` INT(11) NOT NULL AUTO_INCREMENT, `name` VARCHAR(255) NOT NULL, `grade` INT(11) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `lessons` (`id` INT(11) NOT NULL AUTO_INCREMENT, `user_id` INT(11) NOT NULL, `name` VARCHAR(255) NOT NULL, `teacher` VARCHAR(255) NOT NULL, `location` VARCHAR(255) NOT NULL, `period` TIME NOT NULL, `day` INT(11) NOT NULL, PRIMARY KEY (`id`), FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `cafeteria_menus` ( `id` INT(11) NOT NULL AUTO_INCREMENT, `date` DATE NOT NULL, `meal` VARCHAR(255) NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `checklists` (`id` INT(11) NOT NULL AUTO_INCREMENT, `title` STRING NOT NULL, `UserID` VARCHAR(255) NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+	query := "CREATE TABLE IF NOT EXISTS `users` (`id` INT(11) NOT NULL AUTO_INCREMENT, `google_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `teachers` (`id` INT(11) NOT NULL AUTO_INCREMENT, `google_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, `access` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `admins` {`id` INT(11) NOT NULL AUTO_INCREMENT, `google_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, `access_to_all` VARCHAR(255) NOT NULL, `admin_access` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)} ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;CREATE TABLE IF NOT EXISTS `students` (`id` INT(11) NOT NULL AUTO_INCREMENT, `name` VARCHAR(255) NOT NULL, `grade` INT(11) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `lessons` (`id` INT(11) NOT NULL AUTO_INCREMENT, `user_id` INT(11) NOT NULL, `name` VARCHAR(255) NOT NULL, `teacher` VARCHAR(255) NOT NULL, `location` VARCHAR(255) NOT NULL, `period` TIME NOT NULL, `day` INT(11) NOT NULL, PRIMARY KEY (`id`), FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `cafeteria_menus` ( `id` INT(11) NOT NULL AUTO_INCREMENT, `date` DATE NOT NULL, `meal` VARCHAR(255) NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `checklists` (`id` INT(11) NOT NULL AUTO_INCREMENT, `title` STRING NOT NULL, `UserID` VARCHAR(255) NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; CREATE TABLE IF NOT EXISTS `schoolevents` {`id` INT(11) NOT NULL AUTO_INCREMENT, `month` INT(11) NOT NULL, `school` STRING NOT NULL, `events` VARCHAR(255) NOT NULL, PRIMARY KEY (`month`)} ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
 
 	// Execute query
 	db.QueryRow(query)
@@ -875,11 +875,11 @@ func CreateChecklist(checklist *models.Checklist) (int, error) {
 	}
 
 	// Prepare query to insert checklist items
-	itemQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete, IsPublic) VALUES (?, ?, ?, ?, ?)"
+	itemQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete, IsPublic, SharedWith) VALUES (?, ?, ?, ?, ?, ?)"
 
 	// Execute query to insert checklist items
 	for _, item := range checklist.Items {
-		_, err = tx.Exec(itemQuery, checklistID, item.ID, item.Text, item.Complete, item.IsPublic)
+		_, err = tx.Exec(itemQuery, checklistID, item.ID, item.Text, item.Complete, item.IsPublic, item.SharedWith)
 		if err != nil {
 			tx.Rollback()
 			return -1, err
@@ -925,11 +925,11 @@ func UpdateChecklist(checklist *models.Checklist) error {
 	}
 
 	// Prepare query to insert new checklist items
-	insertItemsQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete, IsPublic) VALUES (?, ?, ?, ?, ?)"
+	insertItemsQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete, IsPublic, SharedWith) VALUES (?, ?, ?, ?, ?, ?)"
 
 	// Execute query to insert new checklist items
 	for _, item := range checklist.Items {
-		_, err = tx.Exec(insertItemsQuery, checklist.ID, item.ID, item.Text, item.Complete, item.IsPublic)
+		_, err = tx.Exec(insertItemsQuery, checklist.ID, item.ID, item.Text, item.Complete, item.IsPublic, item.SharedWith)
 		if err != nil {
 			tx.Rollback()
 			return err
@@ -1011,7 +1011,7 @@ func GetChecklistItemByID(id int) (*models.Checklist, error) {
 	// Scan rows into item objects and add them to the checklist
 	for rows.Next() {
 		var item models.Items
-		err = rows.Scan(&item.ID, &item.Text, &item.Complete, &item.IsPublic)
+		err = rows.Scan(&item.ID, &item.Text, &item.Complete, &item.IsPublic, &item.SharedWith)
 		if err != nil {
 			return nil, err
 		}
@@ -1049,7 +1049,7 @@ func GetChecklistItems(id int) (*models.Checklist, error) {
 	// Scan rows into item objects and add them to the checklist
 	for rows.Next() {
 		var item models.Items
-		err = rows.Scan(&item.ID, &item.Text, &item.Complete, &item.IsPublic)
+		err = rows.Scan(&item.ID, &item.Text, &item.Complete, &item.IsPublic, &item.SharedWith)
 		if err != nil {
 			return nil, err
 		}
@@ -1086,11 +1086,11 @@ func CreateChecklistItem(checklist *models.Checklist) error {
 	}
 
 	// Prepare query to insert checklist items
-	itemQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete, IsPublic) VALUES (?, ?, ?, ?, ?)"
+	itemQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete, IsPublic, SharedWith) VALUES (?, ?, ?, ?, ?, ?)"
 
 	// Execute query to insert checklist items
 	for _, item := range checklist.Items {
-		_, err = tx.Exec(itemQuery, checklistID, item.ID, item.Text, item.Complete, item.IsPublic)
+		_, err = tx.Exec(itemQuery, checklistID, item.ID, item.Text, item.Complete, item.IsPublic, item.SharedWith)
 		if err != nil {
 			tx.Rollback()
 			return err
@@ -1136,11 +1136,11 @@ func UpdateChecklistItem(checklist *models.Checklist) error {
 	}
 
 	// Prepare query to insert new checklist items
-	insertItemsQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete, IsPublic) VALUES (?, ?, ?, ?, ?)"
+	insertItemsQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete, IsPublic, SharedWith) VALUES (?, ?, ?, ?, ?, ?)"
 
 	// Execute query to insert new checklist items
 	for _, item := range checklist.Items {
-		_, err = tx.Exec(insertItemsQuery, checklist.ID, item.ID, item.Text, item.Complete, item.IsPublic)
+		_, err = tx.Exec(insertItemsQuery, checklist.ID, item.ID, item.Text, item.Complete, item.IsPublic, item.SharedWith)
 		if err != nil {
 			tx.Rollback()
 			return err
@@ -1193,4 +1193,62 @@ func DeleteChecklistItem(id int) error {
 	}
 
 	return nil
+}
+
+// GetAllEvents returns all events
+func GetAllEvents() (*models.Events, error) {
+	// Prepare query
+	query := "SELECT * FROM schoolevents"
+
+	// Execute query
+	row := db.QueryRow(query)
+
+	// Scan row into student object
+	var events models.Events
+	err := row.Scan(&events.ID, &events.Month, &events.School, &events.Event, &events.Exists)
+	if err != nil {
+		return nil, err
+	}
+
+	return &events, nil
+}
+
+// GetEventsByMonth returns a event by Month
+func GetEventsByMonth(month int) (*models.Events, error) {
+	// Prepare query
+	query := "SELECT * FROM schoolevents WHERE month = ?"
+
+	// Execute query
+	row := db.QueryRow(query, month)
+
+	// Scan row into student object
+	var events models.Events
+	err := row.Scan(&events.ID, &events.Month, &events.School, &events.Event, &events.Exists)
+	if err != nil {
+		return nil, err
+	}
+
+	return &events, nil
+}
+
+// CreateEvents creates a new event
+func CreateEvents(events *models.Events) (int64, error) {
+	// Prepare query
+	query := "INSERT INTO schoolevents (month, school, events, exists) VALUES (?, ?, ?, ?)"
+
+	// Execute query
+	result, err := db.Exec(query, events.Month, events.School, events.Event, &events.Exists)
+	if err != nil {
+		return 0, err
+	}
+
+	// Get the ID of the newly created student
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+
+	events.ID = int(id)
+
+	return id, nil
 }
