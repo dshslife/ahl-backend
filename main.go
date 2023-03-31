@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/username/schoolapp/db"
 	"github.com/username/schoolapp/handlers"
 	"log"
 	"os"
@@ -17,6 +18,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
+	db.Connect()
 
 	// Create new Gin router
 	r := gin.Default()
@@ -83,8 +85,10 @@ func main() {
 
 	events := r.Group("/events")
 	{
-		events.GET("/:months", handlers.GetEvents)
+		events.GET("/:months", handlers.GetEventsOfOneMonth)
 	}
+
+	r.GET("/map", handlers.GetMap)
 
 	// Run the server
 	port := os.Getenv("PORT")
@@ -95,4 +99,5 @@ func main() {
 	if err != nil {
 		log.Fatal("Error running server")
 	}
+	db.Close()
 }
