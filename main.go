@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/username/schoolapp/db"
-	"github.com/username/schoolapp/handlers"
-	"log"
-	"os"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/username/schoolapp/db"
+	"github.com/username/schoolapp/handlers"
 	"github.com/username/schoolapp/middlewares"
+	"log"
+	"os"
 )
+
 func main() {
 	// Load environment variables from .env file
 	err := godotenv.Load()
@@ -83,7 +84,6 @@ func main() {
 
 	events := r.Group("/events")
 	{
-		events.GET("/:months", handlers.GetEvents)
 		events.GET("/:months", handlers.GetEventsOfOneMonth)
 	}
 
