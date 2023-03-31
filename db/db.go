@@ -99,7 +99,7 @@ func VerifyToken(token string) (string, error) {
 	// Extract the user ID from the token claims
 	userID, ok := claims["user_id"].(string)
 	if !ok {
-		return "", fmt.Errorf("Error extracting user ID from token")
+		return "", fmt.Errorf("error: extracting user ID from token")
 	}
 
 	return userID, nil
@@ -852,7 +852,7 @@ func DeleteCafeteriaMenu(id int) error {
 	return nil
 }
 
-// GetChecklist returns a checklist
+// GetChecklists returns a checklist
 func GetChecklists(studentID string) (*models.Checklist, error) {
 	// Prepare query
 	query := "SELECT * FROM checklists WHERE UserID = ?"
@@ -1005,7 +1005,7 @@ func DeleteChecklist(id int) error {
 	return nil
 }
 
-// GetChecklistItems returns the checklist items
+// GetChecklistItemByID returns the checklist item by ID
 func GetChecklistItemByID(id int) (*models.Checklist, error) {
 	// Prepare query
 	query := "SELECT * FROM checklist WHERE id = ?"
@@ -1234,7 +1234,7 @@ func GetAllEvents() (*models.Events, error) {
 	return &events, nil
 }
 
-// GetEventsByMonth returns a event by Month
+// GetEventsByMonth returns an event by Month
 func GetEventsByMonth(month int) (*models.Events, error) {
 	// Prepare query
 	query := "SELECT * FROM schoolevents WHERE month = ?"
