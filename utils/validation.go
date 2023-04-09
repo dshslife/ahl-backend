@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/bcrypt"
 	"regexp"
@@ -10,86 +11,119 @@ import (
 	"github.com/username/schoolapp/models"
 )
 
-// Validate a student object
-func ValidateStudent(student *models.Student) error {
-	if student.Name == "" {
-		return errors.New("Name is required")
+// Validate account depending on their type
+func ValidateAccount(account *models.Account) error {
+	if account == nil {
+		return errors.New("account is nil")
 	}
 
-	if student.Email == "" {
-		return errors.New("Email is required")
+	// Account 필드 값 확인
+	if account.UserId == "" {
+		return errors.New("account user id is empty")
+	}
+	if account.Name == "" {
+		return errors.New("account name is empty")
+	}
+	if account.Email == "" {
+		return errors.New("account email is empty")
+	}
+	if !isEmailValid(account.Email) {
+		return errors.New("account email is invalid")
+	}
+	if account.Password == "" {
+		return errors.New("account password is empty")
+	}
+	// PermissionInfo 필드 값 확인
+	switch account.GetLevel() {
+	case models.STUDENT:
+		studentInfo, ok := account.PermissionInfo.(models.StudentInfo)
+		if !ok {
+			return errors.New("invalid permission info for student")
+		}
+		if studentInfo.SchoolId == "" {
+			return errors.New("school id is empty for student")
+		}
+		if studentInfo.Grade == 0 {
+			return errors.New("grade is empty for student")
+		}
+		if studentInfo.Class == 0 {
+			return errors.New("class is empty for student")
+		}
+		if studentInfo.Number == 0 {
+			return errors.New("number is empty for student")
+		}
+	case models.TEACHER:
+		teacherInfo, ok := account.PermissionInfo.(models.TeacherInfo)
+		if !ok {
+			return errors.New("invalid permission info for teacher")
+		}
+		if teacherInfo.SchoolId == "" {
+			return errors.New("school id is empty for teacher")
+		}
+	case models.ADMIN:
+		_, ok := account.PermissionInfo.(models.AdminInfo)
+		if !ok {
+			return errors.New("invalid permission info for admin")
+		}
+	case models.UNKNOWN:
+		_, ok := account.PermissionInfo.(models.Unknown)
+		if !ok {
+			return errors.New("invalid permission info for unknown")
+		}
+	default:
+		return errors.New("invalid permission level")
+	}
+	return nil
+}
+
+// ValidateTimetable Validate a timetable object
+func ValidateTimetable(tt *models.Timetable) error {
+	if tt == nil {
+		return errors.New("timetable is nil")
 	}
 
-	if !isEmailValid(student.Email) {
-		return errors.New("Invalid email address")
-	}
-
-	if student.Grade < 1 || student.Grade > 3 {
-		return errors.New("Grade should be between 1 and 3")
+	if len(tt.Entries) == 0 {
+		return errors.New("timetable has no entries")
 	}
 
 	return nil
 }
 
-// Validate a teacher object
-func ValidateTeacher(teacher *models.Teacher) error {
-	if teacher.Name == "" {
-		return errors.New("Name is required")
+func ValidateTimeTableEntry(entry *models.TimetableEntry) error {
+	if entry.TeacherId == "" {
+		return errors.New("teacher id field is empty")
 	}
-
-	if teacher.Email == "" {
-		return errors.New("Email is required")
+	if entry.Location == "" {
+		return errors.New("location field is empty")
 	}
-
-	if !isEmailValid(teacher.Email) {
-		return errors.New("Invalid email address")
+	if entry.Day == "" {
+		return errors.New("day field is empty")
 	}
-
-	return nil
-}
-
-// Validate an admin object
-func ValidateAdmin(admin *models.Admin) error {
-	if admin.Name == "" {
-		return errors.New("Name is required")
+	if entry.Period == "" {
+		return errors.New("period field is empty")
 	}
-
-	if admin.Email == "" {
-		return errors.New("Email is required")
+	if entry.Subject == "" {
+		return errors.New("subject field is empty")
 	}
-
-	if !isEmailValid(admin.Email) {
-		return errors.New("Invalid email address")
-	}
-
-	return nil
-}
-
-// Validate a timetable object
-func ValidateTimetable(timetable *models.Timetable) error {
-	if timetable.StudentID == "" {
-		return errors.New("Student ID is required")
-	}
-
-	if timetable.Day == "" {
-		return errors.New("Day is required")
-	}
-
-	if timetable.Period == "" {
-		return errors.New("Period is required")
-	}
-
-	if timetable.Subject == "" {
-		return errors.New("Subject is required")
-	}
-
 	return nil
 }
 
 // Validate a checklist object
 func ValidateChecklist(checklist *models.Checklist) error {
+	if checklist == nil {
+		return errors.New("checklist is nil")
+	}
+	if checklist.StudentId == "" {
+		return errors.New("student id is required")
+	}
 	if checklist.Title == "" {
-		return errors.New("Title is required")
+		return errors.New("title is required")
+	}
+
+	for _, item := range checklist.Items {
+		if item.Text == "" {
+			return errors.New("item text is required")
+		}
 	}
 
 	return nil
@@ -97,15 +131,71 @@ func ValidateChecklist(checklist *models.Checklist) error {
 
 // Validate a cafeteria menu item
 func ValidateCafeteriaMenu(menu *models.CafeteriaMenu) error {
-	if menu.Date == "" {
-		return errors.New("Date is required")
+	if menu.SchoolId == "" {
+		return errors.New("missing school ID")
 	}
 
-	if menu.Meal == "" {
-		return errors.New("Meal is required")
+	if menu.MealName == "" {
+		return errors.New("missing meal name")
+	}
+
+	if menu.Date == "" {
+		return errors.New("missing date")
+	}
+
+	if len(menu.Items) == 0 {
+		return errors.New("menu has no items")
+	}
+
+	for _, item := range menu.Items {
+		if item.Name == "" {
+			return errors.New("missing item name in menu")
+		}
+
+		if len(item.Allergies) > 0 {
+			for _, allergy := range item.Allergies {
+				if !(1 <= allergy && allergy <= 13) {
+					return fmt.Errorf("invalid allergy type: %s", allergy)
+				}
+			}
+		}
+
+		if item.Contents == "" {
+			return errors.New("missing contents in menu item")
+		}
 	}
 
 	return nil
+}
+
+func ValidateEvents(events *models.Events) error {
+	if events.SchoolId == "" {
+		return fmt.Errorf("school ID is required")
+	}
+	if events.Month < 1 || events.Month > 12 {
+		return fmt.Errorf("month must be between 1 and 12")
+	}
+	for _, event := range events.Events {
+		// Date validation
+		if _, err := time.Parse("2006-01-02", event.Date); err != nil {
+			return fmt.Errorf("invalid date format: %s", event.Date)
+		}
+		// AttendanceType validation
+		if !isValidAttendanceType(event.FirstGradeAttends) {
+			return fmt.Errorf("invalid first grade attendance type: %d", event.FirstGradeAttends)
+		}
+		if !isValidAttendanceType(event.SecondGradeAttends) {
+			return fmt.Errorf("invalid second grade attendance type: %d", event.SecondGradeAttends)
+		}
+		if !isValidAttendanceType(event.ThirdGradeAttends) {
+			return fmt.Errorf("invalid third grade attendance type: %d", event.ThirdGradeAttends)
+		}
+	}
+	return nil
+}
+
+func isValidAttendanceType(attendanceType models.AttendanceType) bool {
+	return attendanceType == models.YES || attendanceType == models.IGNORED || attendanceType == models.NO
 }
 
 // Check if email address is valid

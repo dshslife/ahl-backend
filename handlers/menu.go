@@ -41,7 +41,7 @@ func CreateCafeteriaMenu(c *gin.Context) {
 	}
 
 	// Create menu in database
-	err = db.CreateMenu(&menu)
+	_, err = db.CreateMenu(&menu)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create cafeteria menu"})
 		return
@@ -60,7 +60,7 @@ func UpdateCafeteriaMenu(c *gin.Context) {
 	}
 
 	// Get existing menu from database
-	menu, err := db.GetMenuByID(id)
+	menu, err := db.GetMenuByID(models.DbId(id))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Menu not found"})
 		return
@@ -76,7 +76,7 @@ func UpdateCafeteriaMenu(c *gin.Context) {
 
 	// Update existing menu with new data
 	menu.Date = updatedMenu.Date
-	menu.Meal = updatedMenu.Meal
+	menu.MealName = updatedMenu.MealName
 	menu.Items = updatedMenu.Items
 
 	// Update menu in database
@@ -99,7 +99,7 @@ func DeleteCafeteriaMenu(c *gin.Context) {
 	}
 
 	// Delete menu from database
-	err = db.DeleteMenu(id)
+	err = db.DeleteMenu(models.DbId(id))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete cafeteria menu"})
 		return

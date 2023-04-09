@@ -25,7 +25,7 @@ func GetEvents(c *gin.Context) {
 func GetEventsOfOneMonth(c *gin.Context) {
 	month, err := strconv.Atoi(c.Param("month"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Event Month"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Events Month"})
 		return
 	}
 

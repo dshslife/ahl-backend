@@ -18,7 +18,8 @@ func LockChecklist(c *gin.Context) {
 		return
 	}
 
-	checklist, err := db.GetChecklists(studentID.(string))
+	temp := models.UserId(studentID.(string))
+	checklist, err := db.GetChecklistsOfStudent(&temp)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -43,7 +44,8 @@ func UnLockChecklist(c *gin.Context) {
 		return
 	}
 
-	checklist, err := db.GetChecklists(studentID.(string))
+	temp := models.UserId(studentID.(string))
+	checklist, err := db.GetChecklistsOfStudent(&temp)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -69,7 +71,8 @@ func GetChecklist(c *gin.Context) {
 	}
 
 	// Get checklist items from database
-	items, err := db.GetChecklistItems(userID.(int))
+	temp := models.UserId(userID.(string))
+	items, err := db.GetChecklistsOfStudent(&temp)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get checklist items from database"})
 		return
@@ -78,55 +81,62 @@ func GetChecklist(c *gin.Context) {
 	c.JSON(http.StatusOK, items)
 }
 
-// CreateChecklistItem handles the POST /checklist endpoint
-func CreateChecklistItem(c *gin.Context) {
+// CreateChecklist handles the POST /checklist endpoint
+func CreateChecklist(c *gin.Context) {
 	// Get user ID from request context
 	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user ID from context"})
 		return
 	}
+	temp := models.UserId(userID.(string))
 
 	// Parse request body
-	var item models.Checklist
-	err := c.BindJSON(&item)
+	var checklist models.Checklist
+	err := c.BindJSON(&checklist)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
+	existing, _ := db.GetChecklistsOfStudent(&temp)
+	if existing != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Checklist already exists"})
+		return
+	}
 
 	// Execute query to insert checklist items
-	for _, items := range item.Items {
+	for _, items := range checklist.Items {
 		items.Complete = false
-		item.Items = append(item.Items, items)
+		checklist.Items = append(checklist.Items, items)
 	}
 
-	// Set user ID and completed status for new item
-	item.UserID = userID.(string)
+	// Set user ID and completed status for new checklist
+	checklist.StudentId = models.UserId(userID.(string))
+	checklist.Title = "checklist"
 
-	// Create checklist item in database
-	err = db.CreateChecklistItem(&item)
+	// Create checklist checklist in database
+	_, err = db.CreateChecklist(&checklist)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create checklist item"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create checklist checklist"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, item)
+	c.JSON(http.StatusCreated, checklist)
 }
 
-// UpdateChecklistItem handles the PUT /checklist/:id endpoint
-func UpdateChecklistItem(c *gin.Context) {
-	// Parse item ID from request URL
+// UpdateChecklist handles the PUT /checklist/:id endpoint
+func UpdateChecklist(c *gin.Context) {
+	// Parse toUpdate ID from request URL
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid toUpdate ID"})
 		return
 	}
 
-	// Get existing item from database
-	item, err := db.GetChecklistItemByID(id)
+	// Get existing toUpdate from database
+	toUpdate, err := db.GetChecklistsById(models.DbId(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Item not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "MenuEntry not found"})
 		return
 	}
 
@@ -138,18 +148,18 @@ func UpdateChecklistItem(c *gin.Context) {
 		return
 	}
 
-	// Update existing item with new data
-	item.Title = updatedItem.Title
-	item.Items = updatedItem.Items
+	// Update existing toUpdate with new data
+	toUpdate.Title = updatedItem.Title
+	toUpdate.Items = updatedItem.Items
 
-	// Update item in database
-	err = db.UpdateChecklistItem(item)
+	// Update toUpdate in database
+	err = db.UpdateChecklist(toUpdate)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update checklist item"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update checklist toUpdate"})
 		return
 	}
 
-	c.JSON(http.StatusOK, item)
+	c.JSON(http.StatusOK, toUpdate)
 }
 
 // DeleteChecklistItem handles the DELETE /checklist/:id endpoint
@@ -162,7 +172,7 @@ func DeleteChecklistItem(c *gin.Context) {
 	}
 
 	// Delete item from database
-	err = db.DeleteChecklistItem(id)
+	err = db.DeleteChecklist(models.DbId(id))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete checklist item"})
 		return

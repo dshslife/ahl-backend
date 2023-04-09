@@ -35,31 +35,22 @@ func main() {
 	// Routes for handling students
 	students := r.Group("/students")
 	{
-		students.GET("", handlers.GetStudents)
-		students.PUT("/config", handlers.UpdateStudent)
-	}
-
-	teachers := r.Group("/teachers")
-	{
-		teachers.GET("", handlers.GetTeachers)
-		teachers.PUT("/config", handlers.UpdateTeacher)
+		// Routes for handling timetables
+		timetable := students.Group("/timetable")
+		{
+			timetable.GET("/lock", handlers.LockTimetable)
+			timetable.GET("/unlock", handlers.UnLockTimetable)
+			timetable.GET("", handlers.GetTimetableEntry)
+			timetable.POST("", handlers.CreateTimetable)
+			timetable.PUT("/:id", handlers.UpdateTimetable)
+			timetable.DELETE("/:id", handlers.DeleteTimetable)
+		}
 	}
 
 	admins := r.Group("/admins")
 	{
-		admins.GET("/admin_only", handlers.GetAdmins)
-		admins.PUT("/admin_only/config", handlers.UpdateAdmin)
-	}
-
-	// Routes for handling timetables
-	timetable := r.Group("/timetable")
-	{
-		timetable.GET("/lock", handlers.LockTimetable)
-		timetable.GET("/unlock", handlers.UnLockTimetable)
-		timetable.GET("", handlers.GetTimetable)
-		timetable.POST("", handlers.CreateTimetable)
-		timetable.PUT("/:id", handlers.UpdateTimetable)
-		timetable.DELETE("/:id", handlers.DeleteTimetable)
+		admins.GET("", handlers.GetAccountById)
+		admins.PUT("/config", handlers.UpdateAccount)
 	}
 
 	// Routes for handling cafeteria menus
@@ -77,8 +68,8 @@ func main() {
 		checklist.GET("/lock", handlers.LockChecklist)
 		checklist.GET("/unlock", handlers.UnLockChecklist)
 		checklist.GET("", handlers.GetChecklist)
-		checklist.POST("", handlers.CreateChecklistItem)
-		checklist.PUT("/:id", handlers.UpdateChecklistItem)
+		checklist.POST("", handlers.CreateChecklist)
+		checklist.PUT("/:id", handlers.UpdateChecklist)
 		checklist.DELETE("/:id", handlers.DeleteChecklistItem)
 	}
 

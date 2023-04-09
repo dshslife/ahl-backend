@@ -2,28 +2,17 @@ package models
 
 // Checklist struct represents a to-do list
 type Checklist struct {
-	ID     int     `json:"id"`
-	Title  string  `json:"title"`
-	Items  []Items `json:"items"`
-	UserID string  `json:"user_id"`
+	ID        DbId            `json:"id"`
+	StudentId UserId          `json:"student_id"`
+	Title     string          `json:"title"`
+	Items     []ChecklistItem `json:"items"`
 }
 
-// Item struct represents an item in a to-do list
-type Items struct {
-	ID         int       `json:"id"`
-	Text       string    `json:"text"`
-	Complete   bool      `json:"complete"`
-	IsPublic   bool      `json:"isPublic"`
-	SharedWith []Friends `json:"shared_with"`
-}
-
-// Friends struct represents an person who can share to-do list
-type Friends struct {
-	ID        int    `json:"id"`
-	studentID string `json:"studentID"`
-	School    string `json:"school"`
-	Grade     int    `json:"grade"`
-	Class     int    `json:"class"`
-	Num       int    `json:"num"`
-	Name      string `json:"name"`
+// ChecklistItem struct represents an item in a to-do list
+type ChecklistItem struct {
+	Text     string `json:"text"`
+	Complete bool   `json:"complete"`
+	IsPublic bool   `json:"is_public"`
+	// 아래 필드는 무조건 StudentInfo#Friends에 등록된 친구만 포함할 것!
+	SharedWith []UserId `json:"shared_with"`
 }

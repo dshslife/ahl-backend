@@ -16,21 +16,17 @@ var db *sql.DB
 
 func createTables() {
 	// prepare query
-	createUsers := "CREATE TABLE IF NOT EXISTS `users` (`id` INT(11) NOT NULL AUTO_INCREMENT, `google_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
-	createTeachers := "CREATE TABLE IF NOT EXISTS `teachers` (`id` INT(11) NOT NULL AUTO_INCREMENT, `google_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, `access` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
-	createAdmins := "CREATE TABLE IF NOT EXISTS `admins` (`id` INT(11) NOT NULL AUTO_INCREMENT, `google_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, `access_to_all` VARCHAR(255) NOT NULL, `admin_access` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
-	createStudents := "CREATE TABLE IF NOT EXISTS `students` (`id` INT(11) NOT NULL AUTO_INCREMENT, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, `grade` INT(11) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
-	createLessons := "CREATE TABLE IF NOT EXISTS `lessons` (`id` INT(11) NOT NULL AUTO_INCREMENT, `user_id` INT(11) NOT NULL, `name` VARCHAR(255) NOT NULL, `teacher` VARCHAR(255) NOT NULL, `location` VARCHAR(255) NOT NULL, `period` TIME NOT NULL, `day` INT(11) NOT NULL, PRIMARY KEY (`id`), FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
-	createCafeteria := "CREATE TABLE IF NOT EXISTS `cafeteria_menus` ( `id` INT(11) NOT NULL AUTO_INCREMENT, `date` DATE NOT NULL, `meal` VARCHAR(255) NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
-	createChecklists := "CREATE TABLE IF NOT EXISTS `checklists` (`id` INT(11) NOT NULL AUTO_INCREMENT, `title` TEXT NOT NULL, `UserID` VARCHAR(255) NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
-	createEvents := "CREATE TABLE IF NOT EXISTS `schoolevents` (`id` INT(11) NOT NULL AUTO_INCREMENT, `month` INT(11) NOT NULL, `school` TEXT NOT NULL, `events` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+	createSchools := "CREATE TABLE IF NOT EXISTS `schools` (id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY, `school_id` VARCHAR(255) NOT NULL, `region_id` VARCHAR(255) NOT NULL, `school_name` VARCHAR(255) NOT NULL, `region_name` VARCHAR(255) NOT NULL)  ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+	createAccounts := "CREATE TABLE IF NOT EXISTS `accounts` (`id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY, `user_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, `password` VARCHAR(255) NOT NULL, `permission_level` TINYINT NOT NULL, `school_id` VARCHAR(255), `timetable` TEXT NOT NULL, `grade` INT, `class` INT, `number` INT, `checklist_id` VARCHAR(255) NOT NULL, `friends` TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+	createTimeTables := "CREATE TABLE IF NOT EXISTS `timetables` (`id` INT(11) NOT NULL AUTO_INCREMENT, `teacher_id` INT(11) NOT NULL, `location` VARCHAR(255) NOT NULL, `day` INT(11) NOT NULL, `period` TIME NOT NULL, `subject` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+	createCafeteria := "CREATE TABLE IF NOT EXISTS `cafeteria_menus` ( `id` INT(11) NOT NULL AUTO_INCREMENT, `school_id` VARCHAR(255) NOT NULL, `meal_name` VARCHAR(255) NOT NULL, `date` DATE NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+	createChecklists := "CREATE TABLE IF NOT EXISTS `checklists` (`id` INT(11) NOT NULL AUTO_INCREMENT, `student_id` VARCHAR(255) NOT NULL, `title` TEXT NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+	createEvents := "CREATE TABLE IF NOT EXISTS `schoolevents` (`id` INT(11) NOT NULL AUTO_INCREMENT, `school_id` VARCHAR(255) NOT NULL, `month` INT(11) NOT NULL, `events` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
 
 	// Execute query
-	queries := [8]string{createUsers,
-		createTeachers,
-		createAdmins,
-		createStudents,
-		createLessons,
+	queries := []string{createSchools,
+		createAccounts,
+		createTimeTables,
 		createCafeteria,
 		createChecklists,
 		createEvents}
@@ -86,10 +82,10 @@ func Close() {
 }
 
 // VerifyToken verifies a JWT token and returns the user ID
-func VerifyToken(token string) (string, error) {
+func VerifyToken(token *string) (string, error) {
 	// Verify the JWT token
 	SecretKey := os.Getenv("SECRET_KEY")
-	VerifiedToken, err := utils.VerifyJWT(token, SecretKey)
+	VerifiedToken, err := utils.VerifyJWT(*token, SecretKey)
 	if err != nil {
 		return "", err
 	}
@@ -105,17 +101,17 @@ func VerifyToken(token string) (string, error) {
 	return userID, nil
 }
 
-// GetUserByEmail returns a user by Email
-func GetUserByEmail(Email string) (*models.User, error) {
+// GetAccountByEmail returns a user by Email
+func GetAccountByEmail(Email *string) (*models.Account, error) {
 	// Prepare query
-	query := "SELECT * FROM users WHERE email = ?"
+	query := "SELECT * FROM accounts WHERE email = ?"
 
 	// Execute query
 	row := db.QueryRow(query, Email)
 
 	// Scan row into user object
-	var user models.User
-	err := row.Scan(&user.ID, &user.Name, &user.Email, &user.Password)
+	var user models.Account
+	err := row.Scan(&user.DbId, &user.UserId, &user.Name, &user.Email, &user.Password, &user.PermissionInfo /*그냥 &PermissionInfo만 적어도 되나..?*/)
 	if err != nil {
 		return nil, err
 	}
@@ -123,71 +119,70 @@ func GetUserByEmail(Email string) (*models.User, error) {
 	return &user, nil
 }
 
-// GetAllStudents returns all student
-func GetAllStudents() (*models.Student, error) {
+// GetAccountById returns a student by ID
+func GetAccountById(id *models.UserId) (*models.Account, error) {
 	// Prepare query
-	query := "SELECT * FROM students"
-
-	// Execute query
-	row := db.QueryRow(query)
-
-	// Scan row into student object
-	var student models.Student
-	err := row.Scan(&student.ID, &student.Name, &student.Email, &student.Grade)
-	if err != nil {
-		return nil, err
-	}
-
-	return &student, nil
-}
-
-// GetStudentByID returns a student by ID
-func GetStudentByID(id string) (*models.Student, error) {
-	// Prepare query
-	query := "SELECT * FROM students WHERE id = ?"
+	query := "SELECT * FROM accounts WHERE user_id = ?"
 
 	// Execute query
 	row := db.QueryRow(query, id)
 
-	// Scan row into student object
-	var student models.Student
-	err := row.Scan(&student.ID, &student.Name, &student.Email, &student.Grade)
+	// Scan row into user object
+	var user models.Account
+	err := row.Scan(&user.DbId, &user.UserId, &user.Name, &user.Email, &user.Password, &user.PermissionInfo /*그냥 &PermissionInfo만 적어도 되나..?*/)
 	if err != nil {
 		return nil, err
 	}
 
-	return &student, nil
+	return &user, nil
 }
 
-// CreateStudent creates a new student
-func CreateStudent(student *models.Student) (int64, error) {
+// CreateAccount creates a new student
+func CreateAccount(account *models.Account) (models.DbId, error) {
 	// Prepare query
-	query := "INSERT INTO students (id, name, email, grade) VALUES (?, ?, ?, ?)"
+	query := "INSERT INTO accounts (user_id, name, email, password, permission_level, school_id, timetable, grade, class, number, checklist_id, friends) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
-	// Execute query
-	result, err := db.Exec(query, student.ID, student.Name, student.Email, student.Grade)
+	var result sql.Result
+	var err error
+	switch account.GetLevel() {
+	case models.UNKNOWN:
+		info := account.PermissionInfo.(models.Unknown)
+		result, err = db.Exec(query, account.UserId, account.Name, account.Email, account.Password, info.GetLevel(), "", "", 0, 0)
+	case models.STUDENT:
+		info := account.PermissionInfo.(models.StudentInfo)
+		result, err = db.Exec(query, account.UserId, account.Name, account.Email, account.Password, info.GetLevel(), info.SchoolId, info.Timetable, info.Grade, info.Class)
+	case models.TEACHER:
+		info := account.PermissionInfo.(models.TeacherInfo)
+		result, err = db.Exec(query, account.UserId, account.Name, account.Email, account.Password, info.GetLevel(), info.SchoolId, "", 0, 0)
+	case models.ADMIN:
+		info := account.PermissionInfo.(models.AdminInfo)
+		result, err = db.Exec(query, account.UserId, account.Name, account.Email, account.Password, info.GetLevel(), "", "", 0, 0)
+	}
+
 	if err != nil {
 		return 0, err
 	}
 
-	// Get the ID of the newly created student
+	// Get the ID of the newly created account
 	id, err := result.LastInsertId()
 	if err != nil {
 		return 0, err
 	}
 
-	student.ID = int(id)
+	account.DbId = models.DbId(id)
 
-	return id, nil
+	return account.DbId, nil
 }
 
-// UpdateStudent updates a student
-func UpdateStudent(student *models.Student) error {
+// UpdateAccount updates a student
+func UpdateAccount(account *models.Account) error {
 	// Prepare query
-	query := "UPDATE students SET name = ?, email = ?, grade = ? WHERE id = ?"
+	// TODO 아래 쿼리문에 인자 더 추가하기, PermissionInfo가 기술할 수 있는 모든 종류의 인자가 있어야 함
+	query := "UPDATE accounts SET user_id = ?, name = ?, email = ?, password = ?, school_id = ?, timetable = ?, grade = ?, class = ?, number = ?, checklist_id = ?, friends = ? WHERE id = ?"
 
+	info := account.PermissionInfo.(models.StudentInfo)
 	// Execute query
-	_, err := db.Exec(query, student.Name, student.Email, student.Grade, student.ID)
+	_, err := db.Exec(query, account.UserId, account.Name, account.Email, account.Password, info.SchoolId, info.Timetable, info.Grade, info.Class, info.Number, info.ChecklistId, info.ChecklistId, info.Friends, account.DbId)
 	if err != nil {
 		return err
 	}
@@ -195,10 +190,10 @@ func UpdateStudent(student *models.Student) error {
 	return nil
 }
 
-// DeleteStudent deletes a student by ID
-func DeleteStudent(id int) error {
+// DeleteAccount deletes a student by ID
+func DeleteAccount(id models.DbId) error {
 	// Prepare query
-	query := "DELETE FROM students WHERE id = ?"
+	query := "DELETE FROM accounts WHERE id = ?"
 
 	// Execute query
 	_, err := db.Exec(query, id)
@@ -209,264 +204,65 @@ func DeleteStudent(id int) error {
 	return nil
 }
 
-/*// Get all students
-func GetStudents() (*models.Student, error) {
-	students, err := GetAllStudents()
+// GetTimeTableEntry returns a list of timetables for a student
+func GetTimeTableEntry(id models.DbId) (*models.TimetableEntry, error) {
+	// Prepare query
+	query := "SELECT * FROM timetables WHERE id = ?"
+
+	// Execute query
+	rows, err := db.Query(query, id)
 	if err != nil {
 		return nil, err
 	}
 
-	return students, err
-}*/
-
-// GetAllTeachers returns all teachers
-func GetAllTeachers() (*models.Teacher, error) {
-	// Prepare query
-	query := "SELECT * FROM teachers"
-
-	// Execute query
-	row := db.QueryRow(query)
-
-	// Scan row into teacher object
-	var teacher models.Teacher
-	err := row.Scan(&teacher.ID, &teacher.Name, &teacher.Email, &teacher.Access)
+	// Scan rows into entry objects
+	var entry models.TimetableEntry
+	err = rows.Scan(&entry.ID, &entry.TeacherId, &entry.Location, &entry.Day, &entry.Period, &entry.Subject)
 	if err != nil {
 		return nil, err
 	}
 
-	return &teacher, nil
-}
-
-// GetTeacherByID returns a teacher by ID
-func GetTeacherByID(id string) (*models.Teacher, error) {
-	// Prepare query
-	query := "SELECT * FROM teachers WHERE id = ?"
-
-	// Execute query
-	row := db.QueryRow(query, id)
-
-	// Scan row into teacher object
-	var teacher models.Teacher
-	err := row.Scan(&teacher.ID, &teacher.Name, &teacher.Email, &teacher.Access)
-	if err != nil {
-		return nil, err
-	}
-
-	return &teacher, nil
-}
-
-// CreateTeacher creates a new teacher
-func CreateTeacher(teacher *models.Teacher) (int64, error) {
-	// Prepare query
-	query := "INSERT INTO teachers (id, name, email, access) VALUES (?, ?, ?, ?)"
-
-	// Execute query
-	result, err := db.Exec(query, teacher.ID, teacher.Name, teacher.Email, teacher.Access)
-	if err != nil {
-		return 0, err
-	}
-
-	// Get the ID of the newly created student
-	id, err := result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	teacher.ID = int(id)
-
-	return id, nil
-}
-
-// UpdateTeacher updates a teacher
-func UpdateTeacher(teacher *models.Teacher) error {
-	// Prepare query
-	query := "UPDATE teachers SET name = ?, email = ?, access = ? WHERE id = ?"
-
-	// Execute query
-	_, err := db.Exec(query, teacher.Name, teacher.Email, teacher.Access, teacher.ID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// DeleteTeacher deletes a teacher by ID
-func DeleteTeacher(id int) error {
-	// Prepare query
-	query := "DELETE FROM teachers WHERE id = ?"
-
-	// Execute query
-	_, err := db.Exec(query, id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// GetAllAdmins returns all admins
-func GetAllAdmins() (*models.Admin, error) {
-	// Prepare query
-	query := "SELECT * FROM admins"
-
-	// Execute query
-	row := db.QueryRow(query)
-
-	// Scan row into admin object
-	var admin models.Admin
-	err := row.Scan(&admin.ID, &admin.Name, &admin.Email, &admin.AccessToAll, &admin.AdminAccess)
-	if err != nil {
-		return nil, err
-	}
-
-	return &admin, nil
-}
-
-// GetAdminByID returns an admin by ID
-func GetAdminByID(id string) (*models.Admin, error) {
-	// Prepare query
-	query := "SELECT * FROM admins WHERE id = ?"
-
-	// Execute query
-	row := db.QueryRow(query, id)
-
-	// Scan row into admin object
-	var admin models.Admin
-	err := row.Scan(&admin.ID, &admin.Name, &admin.Email, &admin.AccessToAll, &admin.AdminAccess)
-	if err != nil {
-		return nil, err
-	}
-
-	return &admin, nil
-}
-
-// CreateAdmin creates a new admin
-func CreateAdmin(admin *models.Admin) (int64, error) {
-	// Prepare query
-	query := "INSERT INTO admins (id, name, email, access_to_all, admin_access) VALUES (?, ?, ?, ?, ?)"
-
-	// Execute query
-	result, err := db.Exec(query, admin.ID, admin.Name, admin.Email, admin.AccessToAll, admin.AdminAccess)
-	if err != nil {
-		return 0, err
-	}
-
-	// Get the ID of the newly created student
-	id, err := result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	admin.ID = int(id)
-
-	return id, nil
-}
-
-// UpdateAdmin updates an admin
-func UpdateAdmin(admin *models.Admin) error {
-	// Prepare query
-	query := "UPDATE admins SET name = ?, email = ?, access_to_all = ?, admin_access = ? WHERE id = ?"
-
-	// Execute query
-	_, err := db.Exec(query, admin.Name, admin.Email, admin.AccessToAll, admin.AdminAccess, admin.ID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// DeleteAdmin deletes an admin by ID
-func DeleteAdmin(id int) error {
-	// Prepare query
-	query := "DELETE FROM admins WHERE id = ?"
-
-	// Execute query
-	_, err := db.Exec(query, id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// GetTimetable returns a list of timetables for a student
-func GetTimetable(studentID string) (models.Timetables, error) {
-	// Prepare query
-	query := "SELECT * FROM timetables WHERE student_id = ?"
-
-	// Execute query
-	rows, err := db.Query(query, studentID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Scan rows into timetable objects
-	var timetables models.Timetables
-	for rows.Next() {
-		var timetable models.Timetable
-		err = rows.Scan(&timetable.ID, &timetable.StudentID, &timetable.Day, &timetable.Period, &timetable.Subject, &timetable.IsPublic)
-		if err != nil {
-			return nil, err
-		}
-
-		timetables = append(timetables, timetable)
-	}
-
-	return timetables, nil
-}
-
-// GetTimetableByID returns a list of timetables for a student
-func GetTimetableByID(studentID int) (*models.Timetable, error) {
-	// Prepare query
-	query := "SELECT * FROM timetables WHERE student_id = ?"
-
-	// Execute query
-	rows, err := db.Query(query, studentID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Scan rows into timetable objects
-	var timetable models.Timetable
-	err = rows.Scan(&timetable.ID, &timetable.StudentID, &timetable.Day, &timetable.Period, &timetable.Subject, &timetable.IsPublic)
-	if err != nil {
-		return nil, err
-	}
-
-	return &timetable, nil
+	return &entry, nil
 }
 
 // CreateTimetable creates a new timetable
-func CreateTimetable(timetable *models.Timetable) (int64, error) {
-	// Prepare query
-	query := "INSERT INTO timetables (student_id, day, period, subject, IsPublic) VALUES (?, ?, ?, ?, ?)"
-
-	// Execute query
-	result, err := db.Exec(query, timetable.StudentID, timetable.Day, timetable.Period, timetable.Subject, timetable.IsPublic)
+func CreateTimetable(entry *models.TimetableEntry) (models.DbId, error) {
+	err := utils.ValidateTimeTableEntry(entry)
 	if err != nil {
 		return 0, err
 	}
 
-	// Get the ID of the newly created timetable
+	// Prepare query
+	query := "INSERT INTO timetables (id, teacher_id, location, day, period, subject) VALUES (?, ?, ?, ?, ?, ?)"
+
+	// Execute query
+	result, err := db.Exec(query, entry.ID, entry.TeacherId, entry.Location, entry.Day, entry.Period, entry.Subject)
+	if err != nil {
+		return 0, err
+	}
+
+	// Get the ID of the newly created entry
 	id, err := result.LastInsertId()
 	if err != nil {
 		return 0, err
 	}
 
-	timetable.ID = int(id)
+	entry.ID = models.DbId(id)
 
-	return id, nil
+	return entry.ID, nil
 }
 
 // UpdateTimetable updates a timetable
-func UpdateTimetable(timetable *models.Timetable) error {
+func UpdateTimetable(entry *models.TimetableEntry) error {
+	err := utils.ValidateTimeTableEntry(entry)
+	if err != nil {
+		return err
+	}
 	// Prepare query
-	query := "UPDATE timetables SET student_id = ?, day = ?, period = ?, subject = ?, IsPublic = ? WHERE id = ?"
+	query := "UPDATE timetables SET id = ?, teacher_id = ?, location = ?, day = ?, period = ?, subject = ? WHERE id = ?"
 
 	// Execute query
-	_, err := db.Exec(query, timetable.StudentID, timetable.Day, timetable.Period, timetable.Subject, timetable.IsPublic, timetable.ID)
+	_, err = db.Exec(query, entry.ID, entry.TeacherId, entry.Location, entry.Day, entry.Period, entry.Subject, entry.ID)
 	if err != nil {
 		return err
 	}
@@ -475,7 +271,7 @@ func UpdateTimetable(timetable *models.Timetable) error {
 }
 
 // DeleteTimetable deletes a timetable by ID
-func DeleteTimetable(id int) error {
+func DeleteTimetable(id models.DbId) error {
 	// Prepare query
 	query := "DELETE FROM timetables WHERE id = ?"
 
@@ -489,16 +285,16 @@ func DeleteTimetable(id int) error {
 }
 
 // GetMenuByID returns the cafeteria menu for a specific date by ID
-func GetMenuByID(id int) (*models.CafeteriaMenu, error) {
+func GetMenuByID(id models.DbId) (*models.CafeteriaMenu, error) {
 	// Prepare query
-	query := "SELECT * FROM cafeteria_menu WHERE id = ?"
+	query := "SELECT * FROM cafeteria_menus WHERE id = ?"
 
 	// Execute query
 	row := db.QueryRow(query, id)
 
 	// Scan row into cafeteria menu object
 	var menu models.CafeteriaMenu
-	err := row.Scan(&menu.Date, &menu.Meal, &menu.Items)
+	err := row.Scan(&menu.ID, &menu.SchoolId, &menu.MealName, &menu.Date, &menu.Items)
 	if err != nil {
 		return nil, err
 	}
@@ -509,132 +305,59 @@ func GetMenuByID(id int) (*models.CafeteriaMenu, error) {
 // GetMenu returns the cafeteria menu for a specific date
 func GetMenu(date time.Time) (*models.CafeteriaMenu, error) {
 	// Prepare query
-	query := "SELECT * FROM cafeteria_menu WHERE date = ?"
+	query := "SELECT * FROM cafeteria_menus WHERE date = ?"
 
 	// Execute query
 	row := db.QueryRow(query, date)
 
 	// Scan row into cafeteria menu object
 	var menu models.CafeteriaMenu
-	err := row.Scan(&menu.ID, &menu.Date, &menu.Meal)
+	err := row.Scan(&menu.ID, &menu.SchoolId, &menu.MealName, &menu.Date, &menu.Items)
 	if err != nil {
 		return nil, err
-	}
-
-	// Prepare query to get menu items
-	query = "SELECT * FROM menu_items WHERE menu_id = ?"
-
-	// Execute query
-	rows, err := db.Query(query, menu.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Scan rows into item objects and add them to the menu
-	for rows.Next() {
-		var item models.Item
-		err = rows.Scan(&item.ID, &item.Name, &item.Allergy, &item.Vegetari)
-		if err != nil {
-			return nil, err
-		}
-
-		menu.Items = append(menu.Items, item)
 	}
 
 	return &menu, nil
 }
 
 // CreateMenu creates a new cafeteria menu
-func CreateMenu(menu *models.CafeteriaMenu) error {
-	// Start a transaction
-	tx, err := db.Begin()
+func CreateMenu(menu *models.CafeteriaMenu) (models.DbId, error) {
+	err := utils.ValidateCafeteriaMenu(menu)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Prepare query to insert menu
-	menuQuery := "INSERT INTO cafeteria_menu (date, meal) VALUES (?, ?)"
+	menuQuery := "INSERT INTO cafeteria_menus (id, school_id, meal_name, date, items) VALUES (?, ?, ?, ?, ?)"
 
 	// Execute query to insert menu
-	menuResult, err := tx.Exec(menuQuery, menu.Date, menu.Meal)
+	menuResult, err := db.Exec(menuQuery, menu.ID, menu.SchoolId, menu.MealName, menu.Date, menu.Items)
 	if err != nil {
-		tx.Rollback()
-		return err
+		return 0, err
 	}
 
 	// Get the ID of the newly created menu
 	menuID, err := menuResult.LastInsertId()
 	if err != nil {
-		tx.Rollback()
-		return err
+		return 0, err
 	}
 
-	// Prepare query to insert menu items
-	itemQuery := "INSERT INTO menu_items (menu_id, name, allergy, vegetari) VALUES (?, ?, ?, ?)"
-
-	// Execute query to insert menu items
-	for _, item := range menu.Items {
-		_, err = tx.Exec(itemQuery, menuID, item.Name, item.Allergy, item.Vegetari)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return nil
+	return models.DbId(menuID), nil
 }
 
 // UpdateMenu updates a cafeteria menu
 func UpdateMenu(menu *models.CafeteriaMenu) error {
-	// Start a transaction
-	tx, err := db.Begin()
+	err := utils.ValidateCafeteriaMenu(menu)
 	if err != nil {
 		return err
 	}
 
-	// Prepare query to update menu
-	menuQuery := "UPDATE cafeteria_menu SET date = ?, meal = ? WHERE id = ?"
+	// Prepare query to insert menu
+	menuQuery := "UPDATE cafeteria_menus SET school_id = ?, meal_name = ?, date = ?, items = ? WHERE id = ?"
 
-	// Execute query to update menu
-	_, err = tx.Exec(menuQuery, menu.Date, menu.Meal, menu.ID)
+	// Execute query to insert menu
+	_, err = db.Exec(menuQuery, menu.SchoolId, menu.MealName, menu.Date, menu.Items, menu.ID)
 	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Prepare query to delete existing menu items
-	deleteItemsQuery := "DELETE FROM menu_items WHERE menu_id = ?"
-
-	// Execute query to delete existing menu items
-	_, err = tx.Exec(deleteItemsQuery, menu.ID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Prepare query to insert new menu items
-	insertItemsQuery := "INSERT INTO menu_items (menu_id, name, allergy, vegetari) VALUES (?, ?, ?, ?)"
-
-	// Execute query to insert new menu items
-	for _, item := range menu.Items {
-		_, err = tx.Exec(insertItemsQuery, menu.ID, item.Name, item.Allergy, item.Vegetari)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		tx.Rollback()
 		return err
 	}
 
@@ -642,227 +365,47 @@ func UpdateMenu(menu *models.CafeteriaMenu) error {
 }
 
 // DeleteMenu deletes a cafeteria menu by ID
-func DeleteMenu(id int) error {
-	// Start a transaction
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-
-	// Prepare query to delete menu items
-	deleteItemsQuery := "DELETE FROM menu_items WHERE menu_id = ?"
-
-	// Execute query to delete menu items
-	_, err = tx.Exec(deleteItemsQuery, id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
+func DeleteMenu(id models.DbId) error {
 	// Prepare query to delete menu
-	deleteMenuQuery := "DELETE FROM cafeteria_menu WHERE id = ?"
+	deleteMenuQuery := "DELETE FROM cafeteria_menus WHERE id = ?"
 
 	// Execute query to delete menu
-	_, err = tx.Exec(deleteMenuQuery, id)
+	_, err := db.Exec(deleteMenuQuery, id)
 	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		tx.Rollback()
 		return err
 	}
 
 	return nil
 }
 
-// GetCafeteriaMenus returns the cafeteria menus
-func GetCafeteriaMenus() (*models.CafeteriaMenu, error) {
+// GetChecklistsOfStudent returns a checklist
+func GetChecklistsOfStudent(studentID *models.UserId) (*models.Checklist, error) {
 	// Prepare query
-	query := "SELECT * FROM cafeteria_menu"
-
-	// Execute query
-	row := db.QueryRow(query)
-
-	// Scan row into cafeteria menu object
-	var menu models.CafeteriaMenu
-	err := row.Scan(&menu.ID, &menu.Date, &menu.Meal)
-	if err != nil {
-		return nil, err
-	}
-
-	// Prepare query to get menu items
-	query = "SELECT * FROM menu_items WHERE menu_id = ?"
-
-	// Execute query
-	rows, err := db.Query(query, menu.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Scan rows into item objects and add them to the menu
-	for rows.Next() {
-		var item models.Item
-		err = rows.Scan(&item.ID, &item.Name, &item.Allergy, &item.Vegetari)
-		if err != nil {
-			return nil, err
-		}
-
-		menu.Items = append(menu.Items, item)
-	}
-
-	return &menu, nil
-}
-
-// CreateCafeteriaMenu creates a new cafeteria menu
-func CreateCafeteriaMenu(menu *models.CafeteriaMenu) (int, error) {
-	// Start a transaction
-	tx, err := db.Begin()
-	if err != nil {
-		return -1, err
-	}
-
-	// Prepare query to insert menu
-	menuQuery := "INSERT INTO cafeteria_menu (date, meal) VALUES (?, ?)"
-
-	// Execute query to insert menu
-	menuResult, err := tx.Exec(menuQuery, menu.Date, menu.Meal)
-	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
-
-	// Get the ID of the newly created menu
-	menuID, err := menuResult.LastInsertId()
-	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
-
-	// Prepare query to insert menu items
-	itemQuery := "INSERT INTO menu_items (menu_id, name, allergy, vegetari) VALUES (?, ?, ?, ?)"
-
-	// Execute query to insert menu items
-	for _, item := range menu.Items {
-		_, err = tx.Exec(itemQuery, menuID, item.Name, item.Allergy, item.Vegetari)
-		if err != nil {
-			tx.Rollback()
-			return -1, err
-		}
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
-
-	return menu.ID, err
-}
-
-// UpdateCafeteriaMenu updates a cafeteria menu
-func UpdateCafeteriaMenu(menu *models.CafeteriaMenu) error {
-	// Start a transaction
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-
-	// Prepare query to update menu
-	menuQuery := "UPDATE cafeteria_menu SET date = ?, meal = ? WHERE id = ?"
-
-	// Execute query to update menu
-	_, err = tx.Exec(menuQuery, menu.Date, menu.Meal, menu.ID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Prepare query to delete existing menu items
-	deleteItemsQuery := "DELETE FROM menu_items WHERE menu_id = ?"
-
-	// Execute query to delete existing menu items
-	_, err = tx.Exec(deleteItemsQuery, menu.ID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Prepare query to insert new menu items
-	insertItemsQuery := "INSERT INTO menu_items (menu_id, name, allergy, vegetari) VALUES (?, ?, ?, ?)"
-
-	// Execute query to insert new menu items
-	for _, item := range menu.Items {
-		_, err = tx.Exec(insertItemsQuery, menu.ID, item.Name, item.Allergy, item.Vegetari)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return nil
-}
-
-// DeleteCafeteriaMenu deletes a cafeteria menu by ID
-func DeleteCafeteriaMenu(id int) error {
-	// Start a transaction
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-
-	// Prepare query to delete menu items
-	deleteItemsQuery := "DELETE FROM menu_items WHERE menu_id = ?"
-
-	// Execute query to delete menu items
-	_, err = tx.Exec(deleteItemsQuery, id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Prepare query to delete menu
-	deleteMenuQuery := "DELETE FROM cafeteria_menu WHERE id = ?"
-
-	// Execute query to delete menu
-	_, err = tx.Exec(deleteMenuQuery, id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return nil
-}
-
-// GetChecklists returns a checklist
-func GetChecklists(studentID string) (*models.Checklist, error) {
-	// Prepare query
-	query := "SELECT * FROM checklists WHERE UserID = ?"
+	query := "SELECT * FROM checklists WHERE student_id = ?"
 
 	// Execute query
 	row := db.QueryRow(query, studentID)
 
 	// Scan row into checklist object
 	var checklist models.Checklist
-	err := row.Scan(&checklist.ID, &checklist.Title, &checklist.Items, &checklist.UserID)
+	err := row.Scan(&checklist.ID, &checklist.Title, &checklist.Items, &checklist.Items)
+	if err != nil {
+		return nil, err
+	}
+
+	return &checklist, nil
+}
+
+func GetChecklistsById(id models.DbId) (*models.Checklist, error) {
+	// Prepare query
+	query := "SELECT * FROM checklists WHERE id = ?"
+
+	// Execute query
+	row := db.QueryRow(query, id)
+
+	// Scan row into checklist object
+	var checklist models.Checklist
+	err := row.Scan(&checklist.ID, &checklist.Title, &checklist.Items, &checklist.Items)
 	if err != nil {
 		return nil, err
 	}
@@ -871,96 +414,43 @@ func GetChecklists(studentID string) (*models.Checklist, error) {
 }
 
 // CreateChecklist creates a new checklist
-func CreateChecklist(checklist *models.Checklist) (int, error) {
-	// Start a transaction
-	tx, err := db.Begin()
+func CreateChecklist(checklist *models.Checklist) (models.DbId, error) {
+	err := utils.ValidateChecklist(checklist)
 	if err != nil {
-		return -1, err
+		return 0, err
 	}
 
-	// Prepare query to insert checklist
-	checklistQuery := "INSERT INTO checklists (id, title, UserID) VALUES (?, ?, ?)"
+	// Prepare query to insert menu
+	createQuery := "INSERT INTO checklists (id, student_id, title, items) VALUES (?, ?, ?, ?)"
 
-	// Execute query to insert checklist
-	checklistResult, err := tx.Exec(checklistQuery, checklist.ID, checklist.Title, checklist.UserID)
+	// Execute query to insert menu
+	result, err := db.Exec(createQuery, checklist.ID, checklist.StudentId, checklist.Title, checklist.Items)
 	if err != nil {
-		tx.Rollback()
-		return -1, err
+		return 0, err
 	}
 
 	// Get the ID of the newly created checklist
-	checklistID, err := checklistResult.LastInsertId()
+	listId, err := result.LastInsertId()
 	if err != nil {
-		tx.Rollback()
-		return -1, err
+		return 0, err
 	}
 
-	// Prepare query to insert checklist items
-	itemQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete, IsPublic, SharedWith) VALUES (?, ?, ?, ?, ?, ?)"
-
-	// Execute query to insert checklist items
-	for _, item := range checklist.Items {
-		_, err = tx.Exec(itemQuery, checklistID, item.ID, item.Text, item.Complete, item.IsPublic, item.SharedWith)
-		if err != nil {
-			tx.Rollback()
-			return -1, err
-		}
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
-
-	return checklist.ID, err
+	return models.DbId(listId), nil
 }
 
 // UpdateChecklist updates a checklist
 func UpdateChecklist(checklist *models.Checklist) error {
-	// Start a transaction
-	tx, err := db.Begin()
+	err := utils.ValidateChecklist(checklist)
 	if err != nil {
 		return err
 	}
 
-	// Prepare query to update checklist
-	checklistQuery := "UPDATE checklist SET id = ?, Title = ? WHERE UserID = ?"
+	// Prepare query to insert checklist
+	update := "UPDATE checklists SET student_id = ?, title = ?, items = ? WHERE id = ?"
 
-	// Execute query to update checklist
-	_, err = tx.Exec(checklistQuery, checklist.ID, checklist.Title, checklist.UserID)
+	// Execute query to insert checklist
+	_, err = db.Exec(update, checklist.StudentId, checklist.Title, checklist.Items, checklist.ID)
 	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Prepare query to delete existing checklist items
-	deleteItemsQuery := "DELETE FROM checklist_items WHERE id = ?"
-
-	// Execute query to delete existing checklist items
-	_, err = tx.Exec(deleteItemsQuery, checklist.ID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Prepare query to insert new checklist items
-	insertItemsQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete, IsPublic, SharedWith) VALUES (?, ?, ?, ?, ?, ?)"
-
-	// Execute query to insert new checklist items
-	for _, item := range checklist.Items {
-		_, err = tx.Exec(insertItemsQuery, checklist.ID, item.ID, item.Text, item.Complete, item.IsPublic, item.SharedWith)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		tx.Rollback()
 		return err
 	}
 
@@ -968,251 +458,15 @@ func UpdateChecklist(checklist *models.Checklist) error {
 }
 
 // DeleteChecklist deletes a checklist by ID
-func DeleteChecklist(id int) error {
-	// Start a transaction
-	tx, err := db.Begin()
+func DeleteChecklist(id models.DbId) error {
+	// Prepare query to deleteQuery checklist items
+	deleteQuery := "DELETE FROM checklists WHERE id = ?"
+
+	// Execute query to deleteQuery checklist items
+	_, err := db.Exec(deleteQuery, id)
 	if err != nil {
 		return err
 	}
-
-	// Prepare query to delete checklist items
-	deleteItemsQuery := "DELETE FROM checklist_items WHERE id = ?"
-
-	// Execute query to delete checklist items
-	_, err = tx.Exec(deleteItemsQuery, id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Prepare query to delete checklist
-	deleteChecklistQuery := "DELETE FROM checklist WHERE id = ?"
-
-	// Execute query to delete checklist
-	_, err = tx.Exec(deleteChecklistQuery, id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return nil
-}
-
-// GetChecklistItemByID returns the checklist item by ID
-func GetChecklistItemByID(id int) (*models.Checklist, error) {
-	// Prepare query
-	query := "SELECT * FROM checklist WHERE id = ?"
-
-	// Execute query
-	row := db.QueryRow(query, id)
-
-	// Scan row into checklist object
-	var checklist models.Checklist
-	err := row.Scan(&checklist.ID, &checklist.UserID, &checklist.Title)
-	if err != nil {
-		return nil, err
-	}
-
-	// Prepare query to get checklist items
-	query = "SELECT * FROM checklist_items WHERE id = ?"
-
-	// Execute query
-	rows, err := db.Query(query, checklist.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Scan rows into item objects and add them to the checklist
-	for rows.Next() {
-		var item models.Items
-		err = rows.Scan(&item.ID, &item.Text, &item.Complete, &item.IsPublic, &item.SharedWith)
-		if err != nil {
-			return nil, err
-		}
-
-		checklist.Items = append(checklist.Items, item)
-	}
-
-	return &checklist, nil
-}
-
-// GetChecklistItems returns the checklist items
-func GetChecklistItems(id int) (*models.Checklist, error) {
-	// Prepare query
-	query := "SELECT * FROM checklist WHERE id = ?"
-
-	// Execute query
-	row := db.QueryRow(query, id)
-
-	// Scan row into checklist object
-	var checklist models.Checklist
-	err := row.Scan(&checklist.ID, &checklist.UserID, &checklist.Title)
-	if err != nil {
-		return nil, err
-	}
-
-	// Prepare query to get checklist items
-	query = "SELECT * FROM checklist_items WHERE id = ?"
-
-	// Execute query
-	rows, err := db.Query(query, checklist.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Scan rows into item objects and add them to the checklist
-	for rows.Next() {
-		var item models.Items
-		err = rows.Scan(&item.ID, &item.Text, &item.Complete, &item.IsPublic, &item.SharedWith)
-		if err != nil {
-			return nil, err
-		}
-
-		checklist.Items = append(checklist.Items, item)
-	}
-
-	return &checklist, nil
-}
-
-// CreateChecklistItem creates a new checklist item
-func CreateChecklistItem(checklist *models.Checklist) error {
-	// Start a transaction
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-
-	// Prepare query to insert checklist
-	checklistQuery := "INSERT INTO checklists (id, title, UserID) VALUES (?, ?, ?)"
-
-	// Execute query to insert checklist
-	checklistResult, err := tx.Exec(checklistQuery, checklist.ID, checklist.Title, checklist.UserID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Get the ID of the newly created checklist
-	checklistID, err := checklistResult.LastInsertId()
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Prepare query to insert checklist items
-	itemQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete, IsPublic, SharedWith) VALUES (?, ?, ?, ?, ?, ?)"
-
-	// Execute query to insert checklist items
-	for _, item := range checklist.Items {
-		_, err = tx.Exec(itemQuery, checklistID, item.ID, item.Text, item.Complete, item.IsPublic, item.SharedWith)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return err
-}
-
-// UpdateChecklistItem updates a checklist item
-func UpdateChecklistItem(checklist *models.Checklist) error {
-	// Start a transaction
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-
-	// Prepare query to update checklist
-	checklistQuery := "UPDATE checklist SET id = ?, Title = ? WHERE UserID = ?"
-
-	// Execute query to update checklist
-	_, err = tx.Exec(checklistQuery, checklist.ID, checklist.Title, checklist.UserID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Prepare query to delete existing checklist items
-	deleteItemsQuery := "DELETE FROM checklist_items WHERE id = ?"
-
-	// Execute query to delete existing checklist items
-	_, err = tx.Exec(deleteItemsQuery, checklist.ID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Prepare query to insert new checklist items
-	insertItemsQuery := "INSERT INTO checklist_items (id, item_id, Text, Complete, IsPublic, SharedWith) VALUES (?, ?, ?, ?, ?, ?)"
-
-	// Execute query to insert new checklist items
-	for _, item := range checklist.Items {
-		_, err = tx.Exec(insertItemsQuery, checklist.ID, item.ID, item.Text, item.Complete, item.IsPublic, item.SharedWith)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return nil
-}
-
-// DeleteChecklistItem deletes a checklist item by ID
-func DeleteChecklistItem(id int) error {
-	// Start a transaction
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-
-	// Prepare query to delete checklist items
-	deleteItemsQuery := "DELETE FROM checklist_items WHERE id = ?"
-
-	// Execute query to delete checklist items
-	_, err = tx.Exec(deleteItemsQuery, id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Prepare query to delete checklist
-	deleteChecklistQuery := "DELETE FROM checklist WHERE id = ?"
-
-	// Execute query to delete checklist
-	_, err = tx.Exec(deleteChecklistQuery, id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
 	return nil
 }
 
@@ -1226,7 +480,7 @@ func GetAllEvents() (*models.Events, error) {
 
 	// Scan row into student object
 	var events models.Events
-	err := row.Scan(&events.ID, &events.Month, &events.School, &events.Event, &events.Exists)
+	err := row.Scan(&events.ID, &events.SchoolId, &events.Month, &events.Events)
 	if err != nil {
 		return nil, err
 	}
@@ -1244,7 +498,7 @@ func GetEventsByMonth(month int) (*models.Events, error) {
 
 	// Scan row into student object
 	var events models.Events
-	err := row.Scan(&events.ID, &events.Month, &events.School, &events.Event, &events.Exists)
+	err := row.Scan(&events.ID, &events.SchoolId, &events.Month, &events.Events)
 	if err != nil {
 		return nil, err
 	}
@@ -1253,12 +507,16 @@ func GetEventsByMonth(month int) (*models.Events, error) {
 }
 
 // CreateEvents creates a new event
-func CreateEvents(events *models.Events) (int64, error) {
+func CreateEvents(events *models.Events) (models.DbId, error) {
+	err := utils.ValidateEvents(events)
+	if err != nil {
+		return 0, err
+	}
 	// Prepare query
-	query := "INSERT INTO schoolevents (month, school, events, exists) VALUES (?, ?, ?, ?)"
+	query := "INSERT INTO schoolevents (id, school_id, month, events) VALUES (?, ?, ?, ?)"
 
 	// Execute query
-	result, err := db.Exec(query, events.Month, events.School, events.Event, &events.Exists)
+	result, err := db.Exec(query, events.ID, events.SchoolId, events.Month, &events.Events)
 	if err != nil {
 		return 0, err
 	}
@@ -1269,7 +527,37 @@ func CreateEvents(events *models.Events) (int64, error) {
 		return 0, err
 	}
 
-	events.ID = int(id)
+	events.ID = models.DbId(id)
 
-	return id, nil
+	return events.ID, nil
+}
+
+func GetAllAccounts() ([]models.Account, error) {
+	// Prepare query
+	query := "SELECT * FROM accounts"
+
+	// Execute query
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer func(rows *sql.Rows) {
+		_ = rows.Close()
+	}(rows)
+
+	// Iterate through rows and create Account objects
+	var accounts []models.Account
+	for rows.Next() {
+		var account models.Account
+		err := rows.Scan(&account.DbId, &account.UserId, &account.Name, &account.Email, &account.Password, &account.PermissionInfo)
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, account)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return accounts, nil
 }

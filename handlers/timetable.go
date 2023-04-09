@@ -10,57 +10,68 @@ import (
 
 // LockTimetable locks the timetable
 func LockTimetable(c *gin.Context) {
-	studentID, exists := c.Get("userID")
+	fetched, exists := c.Get("userID")
 
 	if !exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user ID from context"})
 		return
 	}
 
-	timetable, err := db.GetTimetableByID(studentID.(int))
+	studentId := models.UserId(fetched.(string))
+	user, err := db.GetAccountById(&studentId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
-	timetable.IsPublic = false
+	if user.PermissionInfo.GetLevel() != models.STUDENT {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Requested user is not student"})
+	}
+	info := user.PermissionInfo.(models.StudentInfo)
+	info.Timetable.IsPublic = false
 
-	c.JSON(http.StatusOK, timetable)
+	c.JSON(http.StatusOK, info.Timetable)
 }
 
 // UnLockTimetable unlocks the timetable
 func UnLockTimetable(c *gin.Context) {
-	studentID, exists := c.Get("userID")
+	fetched, exists := c.Get("userID")
 
 	if !exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user ID from context"})
 		return
 	}
 
-	timetable, err := db.GetTimetableByID(studentID.(int))
+	studentId := models.UserId(fetched.(string))
+	user, err := db.GetAccountById(&studentId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
-	timetable.IsPublic = true
+	if user.PermissionInfo.GetLevel() != models.STUDENT {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Requested user is not student"})
+	}
+	info := user.PermissionInfo.(models.StudentInfo)
+	info.Timetable.IsPublic = true
 
-	c.JSON(http.StatusOK, timetable)
+	c.JSON(http.StatusOK, info.Timetable)
 }
 
-// GetTimetable handles the GET /timetable endpoint
-func GetTimetable(c *gin.Context) {
+// GetTimetableEntry handles the GET /timetable endpoint
+func GetTimetableEntry(c *gin.Context) {
 	// Get user ID from request context
-	userID, exists := c.Get("userID")
+	fetched, exists := c.Get("id")
 	if !exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user ID from context"})
 		return
 	}
 
 	// Get timetable from database
-	timetable, err := db.GetTimetable(userID.(string))
+	dbId := models.DbId(fetched.(int))
+	timetable, err := db.GetTimeTableEntry(dbId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get timetable from database"})
 		return
@@ -72,14 +83,14 @@ func GetTimetable(c *gin.Context) {
 // CreateTimetable handles the POST /timetable endpoint
 func CreateTimetable(c *gin.Context) {
 	// Get user ID from request context
-	userID, exists := c.Get("userID")
+	fetched, exists := c.Get("teacherID")
 	if !exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user ID from context"})
 		return
 	}
 
 	// Parse request body
-	var lesson models.Timetable
+	var lesson models.TimetableEntry
 	err := c.BindJSON(&lesson)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
@@ -87,7 +98,7 @@ func CreateTimetable(c *gin.Context) {
 	}
 
 	// Set user ID for new lesson
-	lesson.StudentID = userID.(string)
+	lesson.TeacherId = models.UserId(fetched.(string))
 
 	// Create lesson in database
 	_, err = db.CreateTimetable(&lesson)
@@ -109,36 +120,28 @@ func UpdateTimetable(c *gin.Context) {
 	}
 
 	// Get existing lesson from database
-	lesson, err := db.GetTimetableByID(id)
+	_, err = db.GetTimeTableEntry(models.DbId(id))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Lesson not found"})
 		return
 	}
 
 	// Parse request body
-	var updatedLesson models.Timetable
+	var updatedLesson models.TimetableEntry
 	err = c.BindJSON(&updatedLesson)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
-	// Update existing lesson with new data
-	lesson.Subject = updatedLesson.Subject
-	lesson.Teacher = updatedLesson.Teacher
-	lesson.Location = updatedLesson.Location
-	lesson.Period = updatedLesson.Period
-	lesson.Day = updatedLesson.Day
-	lesson.IsPublic = updatedLesson.IsPublic
-
 	// Update lesson in database
-	err = db.UpdateTimetable(lesson)
+	err = db.UpdateTimetable(&updatedLesson)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update lesson"})
 		return
 	}
 
-	c.JSON(http.StatusOK, lesson)
+	c.JSON(http.StatusOK, updatedLesson)
 }
 
 // DeleteTimetable handles the DELETE /timetable/:id endpoint
@@ -151,7 +154,7 @@ func DeleteTimetable(c *gin.Context) {
 	}
 
 	// Delete lesson from database
-	err = db.DeleteTimetable(id)
+	err = db.DeleteTimetable(models.DbId(id))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete lesson"})
 		return

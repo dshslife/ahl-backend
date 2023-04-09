@@ -19,7 +19,7 @@ func Auth() gin.HandlerFunc {
 		}
 
 		token := authHeader[7:]
-		userID, err := db.VerifyToken(token)
+		userID, err := db.VerifyToken(&token)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": err.Error(),
@@ -45,7 +45,7 @@ func VerifyToken(c *gin.Context) {
 	}
 
 	// Verify JWT token
-	userID, err := db.VerifyToken(tokenString)
+	userID, err := db.VerifyToken(&tokenString)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 		c.Abort()

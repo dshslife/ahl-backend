@@ -9,9 +9,9 @@ import (
 	"strconv"
 )
 
-// Get all teachers
-func GetTeachers(c *gin.Context) {
-	teachers, err := db.GetAllTeachers()
+func GetAllAccounts(c *gin.Context) {
+	accounts, err := db.GetAllAccounts()
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -19,43 +19,41 @@ func GetTeachers(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, teachers)
+	c.JSON(http.StatusOK, accounts)
 }
 
-// Get a teacher by ID
-func GetTeacher(c *gin.Context) {
-	id := c.Param("id")
+func GetAccountById(c *gin.Context) {
+	id := models.UserId(c.Param("id"))
 
-	teacher, err := db.GetTeacherByID(id)
+	account, err := db.GetAccountById(&id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
-			"error": "teacher not found",
+			"error": "account not found",
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, teacher)
+	c.JSON(http.StatusOK, account)
 }
 
-// Create a new teacher
-func Createteacher(c *gin.Context) {
-	var teacher models.Teacher
+func CreateAccount(c *gin.Context) {
+	var account models.Account
 
-	if err := c.ShouldBindJSON(&teacher); err != nil {
+	if err := c.ShouldBindJSON(&account); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
 
-	if err := utils.ValidateTeacher(&teacher); err != nil {
+	if err := utils.ValidateAccount(&account); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
 
-	id, err := db.CreateTeacher(&teacher)
+	id, err := db.CreateAccount(&account)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -68,25 +66,24 @@ func Createteacher(c *gin.Context) {
 	})
 }
 
-// Update a teacher
-func UpdateTeacher(c *gin.Context) {
-	var teacher models.Teacher
+func UpdateAccount(c *gin.Context) {
+	var account models.Account
 
-	if err := c.ShouldBindJSON(&teacher); err != nil {
+	if err := c.ShouldBindJSON(&account); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
 
-	if err := utils.ValidateTeacher(&teacher); err != nil {
+	if err := utils.ValidateAccount(&account); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
 
-	if err := db.UpdateTeacher(&teacher); err != nil {
+	if err := db.UpdateAccount(&account); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
@@ -96,9 +93,8 @@ func UpdateTeacher(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{})
 }
 
-// Delete a teacher
-func DeleteTeacher(c *gin.Context) {
-	// Parse teacher ID from request URL
+func DeleteAccount(c *gin.Context) {
+	// Parse account ID from request URL
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -107,8 +103,8 @@ func DeleteTeacher(c *gin.Context) {
 		return
 	}
 
-	// Delete teacher from database
-	err = db.DeleteTeacher(id)
+	// Delete account from database
+	err = db.DeleteAccount(models.DbId(id))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),

@@ -23,7 +23,7 @@ func Login(c *gin.Context) {
 	}
 
 	// Get user from database
-	user, err := db.GetUserByEmail(loginData.Email)
+	user, err := db.GetAccountByEmail(&loginData.Email)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
@@ -41,7 +41,7 @@ func Login(c *gin.Context) {
 
 	// Generate JWT token
 	SecretKey := os.Getenv("SECRET_KEY")
-	token, err := utils.GenerateJWT(user.ID, SecretKey)
+	token, err := utils.GenerateJWT(int(user.DbId), SecretKey)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
