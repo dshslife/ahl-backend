@@ -30,7 +30,7 @@ func ValidateAccount(account *models.Account) error {
 	if !isEmailValid(account.Email) {
 		return errors.New("account email is invalid")
 	}
-	if account.Password == "" {
+	if len(account.Password) == 0 {
 		return errors.New("account password is empty")
 	}
 	// PermissionInfo 필드 값 확인

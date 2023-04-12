@@ -1,15 +1,107 @@
 package models
 
+import "errors"
+
 // Account struct represents a user
-// THIS CONTAINS PASSWORD, THIS SHOULD NEVER BE DELIVERED THROUGH NETWORK
-// TODO Store password hash instead
 type Account struct {
 	DbId           `json:"id"`
 	UserId         `json:"user_id"`
 	Name           string `json:"name"`
 	Email          string `json:"email"`
-	Password       string `json:"password"`
+	Password       []byte
 	PermissionInfo `json:"permission"`
+}
+
+type SqlAccount struct {
+	DbId
+	UserId
+	Name     string
+	Email    string
+	Password []byte
+	PermissionLevel
+	SchoolId
+	Timetable
+	Grade       int
+	Class       int
+	Number      int
+	ChecklistId DbId
+	Friends     []UserId
+}
+
+func (sqlAccount SqlAccount) Finalize() (Account, error) {
+	var info PermissionInfo
+	var err error
+	switch sqlAccount.PermissionLevel {
+	case UNKNOWN:
+		info = Unknown{}
+	case STUDENT:
+		info = StudentInfo{
+			SchoolId:    sqlAccount.SchoolId,
+			Timetable:   sqlAccount.Timetable,
+			Grade:       sqlAccount.Grade,
+			Class:       sqlAccount.Class,
+			Number:      sqlAccount.Number,
+			ChecklistId: sqlAccount.ChecklistId,
+			Friends:     sqlAccount.Friends,
+		}
+	case TEACHER:
+		info = TeacherInfo{
+			SchoolId: sqlAccount.SchoolId,
+		}
+	case ADMIN:
+		info = AdminInfo{}
+	default:
+		err = errors.New("unknown Permission Level")
+	}
+	if err != nil {
+		return Account{}, err
+	}
+	return Account{
+		DbId:           sqlAccount.DbId,
+		UserId:         sqlAccount.UserId,
+		Name:           sqlAccount.Name,
+		Email:          sqlAccount.Email,
+		Password:       sqlAccount.Password,
+		PermissionInfo: info,
+	}, nil
+}
+
+func (account Account) ToSql() (SqlAccount, error) {
+	var toReturn SqlAccount
+	var err error
+	toReturn.DbId = account.DbId
+	toReturn.UserId = account.UserId
+	toReturn.Name = account.Name
+	toReturn.Email = account.Email
+	toReturn.Password = account.Password
+	toReturn.PermissionLevel = account.PermissionInfo.GetLevel()
+
+	switch account.PermissionInfo.GetLevel() {
+	case UNKNOWN:
+		break
+	case STUDENT:
+		info := account.PermissionInfo.(StudentInfo)
+		toReturn.SchoolId = info.SchoolId
+		toReturn.Timetable = info.Timetable
+		toReturn.Grade = info.Grade
+		toReturn.Class = info.Class
+		toReturn.Number = info.Number
+		toReturn.ChecklistId = info.ChecklistId
+		toReturn.Friends = info.Friends
+	case TEACHER:
+		info := account.PermissionInfo.(TeacherInfo)
+		toReturn.SchoolId = info.SchoolId
+	case ADMIN:
+		break
+	default:
+		err = errors.New("unknown Permission Level")
+	}
+
+	if err != nil {
+		return SqlAccount{}, err
+	}
+
+	return toReturn, nil
 }
 
 type PermissionLevel int8

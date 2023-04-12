@@ -17,7 +17,7 @@ var db *sql.DB
 func createTables() {
 	// prepare query
 	createSchools := "CREATE TABLE IF NOT EXISTS `schools` (id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY, `school_id` VARCHAR(255) NOT NULL, `region_id` VARCHAR(255) NOT NULL, `school_name` VARCHAR(255) NOT NULL, `region_name` VARCHAR(255) NOT NULL)  ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
-	createAccounts := "CREATE TABLE IF NOT EXISTS `accounts` (`id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY, `user_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, `password` VARCHAR(255) NOT NULL, `permission_level` TINYINT NOT NULL, `school_id` VARCHAR(255), `timetable` TEXT NOT NULL, `grade` INT, `class` INT, `number` INT, `checklist_id` VARCHAR(255) NOT NULL, `friends` TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+	createAccounts := "CREATE TABLE IF NOT EXISTS `accounts` (`id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY, `user_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, `password` TINYBLOB NOT NULL, `permission_level` TINYINT NOT NULL, `school_id` VARCHAR(255), `timetable` TEXT NOT NULL, `grade` INT, `class` INT, `number` INT, `checklist_id` VARCHAR(255) NOT NULL, `friends` TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
 	createTimeTables := "CREATE TABLE IF NOT EXISTS `timetables` (`id` INT(11) NOT NULL AUTO_INCREMENT, `teacher_id` INT(11) NOT NULL, `location` VARCHAR(255) NOT NULL, `day` INT(11) NOT NULL, `period` TIME NOT NULL, `subject` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
 	createCafeteria := "CREATE TABLE IF NOT EXISTS `cafeteria_menus` ( `id` INT(11) NOT NULL AUTO_INCREMENT, `school_id` VARCHAR(255) NOT NULL, `meal_name` VARCHAR(255) NOT NULL, `date` DATE NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
 	createChecklists := "CREATE TABLE IF NOT EXISTS `checklists` (`id` INT(11) NOT NULL AUTO_INCREMENT, `student_id` VARCHAR(255) NOT NULL, `title` TEXT NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
@@ -109,9 +109,13 @@ func GetAccountByEmail(Email *string) (*models.Account, error) {
 	// Execute query
 	row := db.QueryRow(query, Email)
 
-	// Scan row into user object
-	var user models.Account
-	err := row.Scan(&user.DbId, &user.UserId, &user.Name, &user.Email, &user.Password, &user.PermissionInfo /*그냥 &PermissionInfo만 적어도 되나..?*/)
+	// Scan row into sqlAccount object
+	var sqlAccount models.SqlAccount
+	err := row.Scan(&sqlAccount.DbId, &sqlAccount.UserId, &sqlAccount.Name, &sqlAccount.Email, &sqlAccount.Password, &sqlAccount.PermissionLevel, &sqlAccount.SchoolId, &sqlAccount.Timetable, &sqlAccount.Grade, &sqlAccount.Class, &sqlAccount.Number, &sqlAccount.ChecklistId, &sqlAccount.Friends)
+	if err != nil {
+		return nil, err
+	}
+	user, err := sqlAccount.Finalize()
 	if err != nil {
 		return nil, err
 	}
@@ -128,8 +132,12 @@ func GetAccountById(id *models.UserId) (*models.Account, error) {
 	row := db.QueryRow(query, id)
 
 	// Scan row into user object
-	var user models.Account
-	err := row.Scan(&user.DbId, &user.UserId, &user.Name, &user.Email, &user.Password, &user.PermissionInfo /*그냥 &PermissionInfo만 적어도 되나..?*/)
+	var sqlAccount models.SqlAccount
+	err := row.Scan(&sqlAccount.DbId, &sqlAccount.UserId, &sqlAccount.Name, &sqlAccount.Email, &sqlAccount.Password, &sqlAccount.PermissionLevel, &sqlAccount.SchoolId, &sqlAccount.Timetable, &sqlAccount.Grade, &sqlAccount.Class, &sqlAccount.Number, &sqlAccount.ChecklistId, &sqlAccount.Friends)
+	if err != nil {
+		return nil, err
+	}
+	user, err := sqlAccount.Finalize()
 	if err != nil {
 		return nil, err
 	}
@@ -144,20 +152,13 @@ func CreateAccount(account *models.Account) (models.DbId, error) {
 
 	var result sql.Result
 	var err error
-	switch account.GetLevel() {
-	case models.UNKNOWN:
-		info := account.PermissionInfo.(models.Unknown)
-		result, err = db.Exec(query, account.UserId, account.Name, account.Email, account.Password, info.GetLevel(), "", "", 0, 0)
-	case models.STUDENT:
-		info := account.PermissionInfo.(models.StudentInfo)
-		result, err = db.Exec(query, account.UserId, account.Name, account.Email, account.Password, info.GetLevel(), info.SchoolId, info.Timetable, info.Grade, info.Class)
-	case models.TEACHER:
-		info := account.PermissionInfo.(models.TeacherInfo)
-		result, err = db.Exec(query, account.UserId, account.Name, account.Email, account.Password, info.GetLevel(), info.SchoolId, "", 0, 0)
-	case models.ADMIN:
-		info := account.PermissionInfo.(models.AdminInfo)
-		result, err = db.Exec(query, account.UserId, account.Name, account.Email, account.Password, info.GetLevel(), "", "", 0, 0)
+
+	sqlAccount, err := account.ToSql()
+	if err != nil {
+		return models.DbId(0), err
 	}
+
+	result, err = db.Exec(query, sqlAccount.UserId, sqlAccount.Name, sqlAccount.Email, sqlAccount.Password, sqlAccount.PermissionLevel, sqlAccount.SchoolId, sqlAccount.Timetable, sqlAccount.Grade, sqlAccount.Class)
 
 	if err != nil {
 		return 0, err
@@ -177,12 +178,14 @@ func CreateAccount(account *models.Account) (models.DbId, error) {
 // UpdateAccount updates a student
 func UpdateAccount(account *models.Account) error {
 	// Prepare query
-	// TODO 아래 쿼리문에 인자 더 추가하기, PermissionInfo가 기술할 수 있는 모든 종류의 인자가 있어야 함
-	query := "UPDATE accounts SET user_id = ?, name = ?, email = ?, password = ?, school_id = ?, timetable = ?, grade = ?, class = ?, number = ?, checklist_id = ?, friends = ? WHERE id = ?"
+	query := "UPDATE accounts SET user_id = ?, name = ?, email = ?, password = ?, permission_level = ?, school_id = ?, timetable = ?, grade = ?, class = ?, number = ?, checklist_id = ?, friends = ? WHERE id = ?"
 
-	info := account.PermissionInfo.(models.StudentInfo)
+	sqlAccount, err := account.ToSql()
+	if err != nil {
+		return err
+	}
 	// Execute query
-	_, err := db.Exec(query, account.UserId, account.Name, account.Email, account.Password, info.SchoolId, info.Timetable, info.Grade, info.Class, info.Number, info.ChecklistId, info.ChecklistId, info.Friends, account.DbId)
+	_, err = db.Exec(query, sqlAccount.UserId, sqlAccount.Name, sqlAccount.Email, sqlAccount.Password, sqlAccount.PermissionLevel, sqlAccount.SchoolId, sqlAccount.Timetable, sqlAccount.Grade, sqlAccount.Class, sqlAccount.Number, sqlAccount.ChecklistId, sqlAccount.ChecklistId, sqlAccount.Friends, sqlAccount.DbId)
 	if err != nil {
 		return err
 	}
