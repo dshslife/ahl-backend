@@ -53,7 +53,7 @@ func VerifyToken(c *gin.Context) {
 	}
 
 	// Set user ID in request context
-	c.Set("userID", userID)
+	c.Set("user_id", userID)
 
 	c.Next()
 }

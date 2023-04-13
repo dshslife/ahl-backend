@@ -90,7 +90,7 @@ func UpdateAccount(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{})
+	c.String(http.StatusOK, "Account updated")
 }
 
 func DeleteAccount(c *gin.Context) {
@@ -112,5 +112,5 @@ func DeleteAccount(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{})
+	c.String(http.StatusOK, "Account deleted")
 }

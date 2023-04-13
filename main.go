@@ -79,6 +79,7 @@ func main() {
 	}
 
 	r.GET("/map", handlers.GetMap)
+	r.PUT("/map", handlers.PutMap)
 
 	// Run the server
 	port := os.Getenv("PORT")
