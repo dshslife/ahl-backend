@@ -90,5 +90,5 @@ func main() {
 	if err != nil {
 		log.Fatal("Error running server")
 	}
-	db.Close()
+	db.close()
 }
