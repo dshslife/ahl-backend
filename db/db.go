@@ -3,8 +3,8 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/google/uuid"
 	"github.com/username/schoolapp/models"
 	"github.com/username/schoolapp/utils"
 	"log"
@@ -16,7 +16,7 @@ var db *sql.DB
 
 func createTables() {
 	// prepare query
-	createSchools := "CREATE TABLE IF NOT EXISTS `schools` (id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY, `school_id` VARCHAR(255) NOT NULL, `region_id` VARCHAR(255) NOT NULL, `school_name` VARCHAR(255) NOT NULL, `region_name` VARCHAR(255) NOT NULL)  ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+	createSchools := "CREATE TABLE IF NOT EXISTS `schools` (id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY, `school_id` VARCHAR(255) NOT NULL, `region_id` VARCHAR(255) NOT NULL, `school_name` VARCHAR(255) NOT NULL, `region_name` VARCHAR(255) NOT NULL, `organization_email_only` BOOL NOT NULL)  ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
 	createAccounts := "CREATE TABLE IF NOT EXISTS `accounts` (`id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY, `user_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, `password` TINYBLOB NOT NULL, `permission_level` TINYINT NOT NULL, `school_id` VARCHAR(255), `timetable` TEXT NOT NULL, `grade` INT, `class` INT, `number` INT, `checklist_id` VARCHAR(255) NOT NULL, `friends` TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
 	createTimeTables := "CREATE TABLE IF NOT EXISTS `timetables` (`id` INT(11) NOT NULL AUTO_INCREMENT, `teacher_id` INT(11) NOT NULL, `location` VARCHAR(255) NOT NULL, `day` INT(11) NOT NULL, `period` TIME NOT NULL, `subject` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
 	createCafeteria := "CREATE TABLE IF NOT EXISTS `cafeteria_menus` ( `id` INT(11) NOT NULL AUTO_INCREMENT, `school_id` VARCHAR(255) NOT NULL, `meal_name` VARCHAR(255) NOT NULL, `date` DATE NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
@@ -81,26 +81,6 @@ func Close() {
 	}
 }
 
-// VerifyToken verifies a JWT token and returns the user ID
-func VerifyToken(token *string) (string, error) {
-	// Verify the JWT token
-	SecretKey := os.Getenv("SECRET_KEY")
-	VerifiedToken, err := utils.VerifyJWT(*token, SecretKey)
-	if err != nil {
-		return "", err
-	}
-
-	claims := VerifiedToken.Claims.(jwt.MapClaims)
-
-	// Extract the user ID from the token claims
-	userID, ok := claims["user_id"].(string)
-	if !ok {
-		return "", fmt.Errorf("error: extracting user ID from token")
-	}
-
-	return userID, nil
-}
-
 // GetAccountByEmail returns a user by Email
 func GetAccountByEmail(Email *string) (*models.Account, error) {
 	// Prepare query
@@ -124,7 +104,7 @@ func GetAccountByEmail(Email *string) (*models.Account, error) {
 }
 
 // GetAccountById returns a student by ID
-func GetAccountById(id *models.UserId) (*models.Account, error) {
+func GetAccountById(id *uuid.UUID) (*models.Account, error) {
 	// Prepare query
 	query := "SELECT * FROM accounts WHERE user_id = ?"
 
@@ -236,10 +216,10 @@ func CreateTimetable(entry *models.TimetableEntry) (models.DbId, error) {
 	}
 
 	// Prepare query
-	query := "INSERT INTO timetables (id, teacher_id, location, day, period, subject) VALUES (?, ?, ?, ?, ?, ?)"
+	query := "INSERT INTO timetables (teacher_id, location, day, period, subject) VALUES (?, ?, ?, ?, ?)"
 
 	// Execute query
-	result, err := db.Exec(query, entry.ID, entry.TeacherId, entry.Location, entry.Day, entry.Period, entry.Subject)
+	result, err := db.Exec(query, entry.TeacherId, entry.Location, entry.Day, entry.Period, entry.Subject)
 	if err != nil {
 		return 0, err
 	}
@@ -331,10 +311,10 @@ func CreateMenu(menu *models.CafeteriaMenu) (models.DbId, error) {
 	}
 
 	// Prepare query to insert menu
-	menuQuery := "INSERT INTO cafeteria_menus (id, school_id, meal_name, date, items) VALUES (?, ?, ?, ?, ?)"
+	menuQuery := "INSERT INTO cafeteria_menus (school_id, meal_name, date, items) VALUES (?, ?, ?, ?)"
 
 	// Execute query to insert menu
-	menuResult, err := db.Exec(menuQuery, menu.ID, menu.SchoolId, menu.MealName, menu.Date, menu.Items)
+	menuResult, err := db.Exec(menuQuery, menu.SchoolId, menu.MealName, menu.Date, menu.Items)
 	if err != nil {
 		return 0, err
 	}
@@ -344,6 +324,7 @@ func CreateMenu(menu *models.CafeteriaMenu) (models.DbId, error) {
 	if err != nil {
 		return 0, err
 	}
+	menu.ID = models.DbId(menuID)
 
 	return models.DbId(menuID), nil
 }
@@ -382,7 +363,7 @@ func DeleteMenu(id models.DbId) error {
 }
 
 // GetChecklistsOfStudent returns a checklist
-func GetChecklistsOfStudent(studentID *models.UserId) (*models.Checklist, error) {
+func GetChecklistsOfStudent(studentID *uuid.UUID) (*models.Checklist, error) {
 	// Prepare query
 	query := "SELECT * FROM checklists WHERE student_id = ?"
 
@@ -424,10 +405,10 @@ func CreateChecklist(checklist *models.Checklist) (models.DbId, error) {
 	}
 
 	// Prepare query to insert menu
-	createQuery := "INSERT INTO checklists (id, student_id, title, items) VALUES (?, ?, ?, ?)"
+	createQuery := "INSERT INTO checklists (student_id, title, items) VALUES (?, ?, ?)"
 
 	// Execute query to insert menu
-	result, err := db.Exec(createQuery, checklist.ID, checklist.StudentId, checklist.Title, checklist.Items)
+	result, err := db.Exec(createQuery, checklist.StudentId, checklist.Title, checklist.Items)
 	if err != nil {
 		return 0, err
 	}
@@ -437,6 +418,7 @@ func CreateChecklist(checklist *models.Checklist) (models.DbId, error) {
 	if err != nil {
 		return 0, err
 	}
+	checklist.ID = models.DbId(listId)
 
 	return models.DbId(listId), nil
 }
@@ -516,10 +498,10 @@ func CreateEvents(events *models.Events) (models.DbId, error) {
 		return 0, err
 	}
 	// Prepare query
-	query := "INSERT INTO schoolevents (id, school_id, month, events) VALUES (?, ?, ?, ?)"
+	query := "INSERT INTO schoolevents (school_id, month, events) VALUES (?, ?, ?)"
 
 	// Execute query
-	result, err := db.Exec(query, events.ID, events.SchoolId, events.Month, &events.Events)
+	result, err := db.Exec(query, events.SchoolId, events.Month, &events.Events)
 	if err != nil {
 		return 0, err
 	}
@@ -563,4 +545,29 @@ func GetAllAccounts() ([]models.Account, error) {
 	}
 
 	return accounts, nil
+}
+
+func CreateSchool(school *models.School) (models.DbId, error) {
+	err := utils.ValidateSchool(school)
+	if err != nil {
+		return 0, err
+	}
+	// Prepare query
+	query := "INSERT INTO schools (school_id, region_id, school_name, region_name, organization_email_only) VALUES (?, ?, ?, ?, ?)"
+
+	// Execute query
+	result, err := db.Exec(query, school.SchoolId, school.RegionId, school.SchoolName, school.RegionName, school.OrganizationEmailOnly)
+	if err != nil {
+		return 0, err
+	}
+
+	// Get the ID of the newly created school
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+
+	school.ID = models.DbId(id)
+
+	return school.ID, nil
 }

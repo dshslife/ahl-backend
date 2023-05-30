@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/username/schoolapp/db"
 	"github.com/username/schoolapp/models"
 	"io"
@@ -18,7 +19,7 @@ func GetMap(c *gin.Context) {
 		return
 	}
 
-	userId := models.UserId(fetched.(string))
+	userId := fetched.(uuid.UUID)
 	account, err := db.GetAccountById(&userId)
 	if err != nil {
 		c.JSON(http.StatusForbidden, err)
@@ -72,7 +73,7 @@ func PutMap(c *gin.Context) {
 		return
 	}
 
-	userId := models.UserId(fetched.(string))
+	userId := fetched.(uuid.UUID)
 	account, err := db.GetAccountById(&userId)
 	if err != nil {
 		c.JSON(http.StatusForbidden, err)

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/username/schoolapp/db"
 	"github.com/username/schoolapp/models"
 	"net/http"
@@ -10,14 +11,14 @@ import (
 
 // LockTimetable locks the timetable
 func LockTimetable(c *gin.Context) {
-	fetched, exists := c.Get("userID")
+	fetched, exists := c.Get("user_id")
 
 	if !exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user ID from context"})
 		return
 	}
 
-	studentId := models.UserId(fetched.(string))
+	studentId := fetched.(uuid.UUID)
 	user, err := db.GetAccountById(&studentId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -36,14 +37,14 @@ func LockTimetable(c *gin.Context) {
 
 // UnLockTimetable unlocks the timetable
 func UnLockTimetable(c *gin.Context) {
-	fetched, exists := c.Get("userID")
+	fetched, exists := c.Get("user_id")
 
 	if !exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user ID from context"})
 		return
 	}
 
-	studentId := models.UserId(fetched.(string))
+	studentId := fetched.(uuid.UUID)
 	user, err := db.GetAccountById(&studentId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -98,7 +99,7 @@ func CreateTimetable(c *gin.Context) {
 	}
 
 	// Set user ID for new lesson
-	lesson.TeacherId = models.UserId(fetched.(string))
+	lesson.TeacherId = fetched.(uuid.UUID)
 
 	// Create lesson in database
 	_, err = db.CreateTimetable(&lesson)

@@ -1,20 +1,21 @@
 package models
 
 import "errors"
+import "github.com/google/uuid"
 
 // Account struct represents a user
 type Account struct {
 	DbId           `json:"id"`
-	UserId         `json:"user_id"`
-	Name           string `json:"name"`
-	Email          string `json:"email"`
+	UserId         uuid.UUID `json:"user_id"`
+	Name           string    `json:"name"`
+	Email          string    `json:"email"`
 	Password       []byte
 	PermissionInfo `json:"permission"`
 }
 
 type SqlAccount struct {
 	DbId
-	UserId
+	UserId   uuid.UUID
 	Name     string
 	Email    string
 	Password []byte
@@ -25,15 +26,13 @@ type SqlAccount struct {
 	Class       int
 	Number      int
 	ChecklistId DbId
-	Friends     []UserId
+	Friends     []uuid.UUID
 }
 
 func (sqlAccount SqlAccount) Finalize() (Account, error) {
 	var info PermissionInfo
 	var err error
 	switch sqlAccount.PermissionLevel {
-	case UNKNOWN:
-		info = Unknown{}
 	case STUDENT:
 		info = StudentInfo{
 			SchoolId:    sqlAccount.SchoolId,
@@ -77,8 +76,6 @@ func (account Account) ToSql() (SqlAccount, error) {
 	toReturn.PermissionLevel = account.PermissionInfo.GetLevel()
 
 	switch account.PermissionInfo.GetLevel() {
-	case UNKNOWN:
-		break
 	case STUDENT:
 		info := account.PermissionInfo.(StudentInfo)
 		toReturn.SchoolId = info.SchoolId
@@ -106,7 +103,6 @@ func (account Account) ToSql() (SqlAccount, error) {
 
 type PermissionLevel int8
 type DbId int
-type UserId string // 이거 진짜 쓸라나? DbId로만 퉁칠 수 있긴 한데
 
 // PermissionInfo 유저 권한에 따른 추가 정보, 권한 레벨은 무조건 있어야 함
 // StudentInfo, TeacherInfo, AdminInfo, Unknown이 아래 인터페이스를 구현함.
@@ -115,26 +111,19 @@ type PermissionInfo interface {
 }
 
 var (
-	UNKNOWN PermissionLevel = 0
 	STUDENT PermissionLevel = 1
 	TEACHER PermissionLevel = 2
 	ADMIN   PermissionLevel = 3
 )
 
-type Unknown struct{}
-
-func (info Unknown) GetLevel() PermissionLevel {
-	return UNKNOWN
-}
-
 type StudentInfo struct {
 	SchoolId    `json:"school_id"`
 	Timetable   `json:"timetable"`
-	Grade       int      `json:"grade"`  //학년
-	Class       int      `json:"class"`  //반
-	Number      int      `json:"number"` //번호
-	ChecklistId DbId     `json:"checklist_id"`
-	Friends     []UserId `json:"friends"`
+	Grade       int         `json:"grade"`  //학년
+	Class       int         `json:"class"`  //반
+	Number      int         `json:"number"` //번호
+	ChecklistId DbId        `json:"checklist_id"`
+	Friends     []uuid.UUID `json:"friends"`
 }
 
 func (info StudentInfo) GetLevel() PermissionLevel {

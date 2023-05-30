@@ -41,7 +41,7 @@ func Login(c *gin.Context) {
 
 	// Generate JWT token
 	SecretKey := os.Getenv("SECRET_KEY")
-	token, err := utils.GenerateJWT(int(user.DbId), SecretKey)
+	token, err := utils.EncryptJWT(user.UserId, "user_id", SecretKey)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return

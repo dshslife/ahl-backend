@@ -3,13 +3,68 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
+	"github.com/username/schoolapp/models"
 	"golang.org/x/crypto/bcrypt"
 	"regexp"
 	"time"
-
-	"github.com/username/schoolapp/models"
 )
+
+// ValidateNewAccount ValidateNewAccount와 동일하나 ID 검사는 안함
+func ValidateNewAccount(account *models.Account) error {
+	if account == nil {
+		return errors.New("account is nil")
+	}
+
+	if account.Name == "" {
+		return errors.New("account name is empty")
+	}
+	if account.Email == "" {
+		return errors.New("account email is empty")
+	}
+	if !isEmailValid(account.Email) {
+		return errors.New("account email is invalid")
+	}
+	if len(account.Password) == 0 {
+		return errors.New("account password is empty")
+	}
+	// PermissionInfo 필드 값 확인
+	switch account.GetLevel() {
+	case models.STUDENT:
+		studentInfo, ok := account.PermissionInfo.(models.StudentInfo)
+		if !ok {
+			return errors.New("invalid permission info for student")
+		}
+		if studentInfo.SchoolId == "" {
+			return errors.New("school id is empty for student")
+		}
+		if studentInfo.Grade == 0 {
+			return errors.New("grade is empty for student")
+		}
+		if studentInfo.Class == 0 {
+			return errors.New("class is empty for student")
+		}
+		if studentInfo.Number == 0 {
+			return errors.New("number is empty for student")
+		}
+	case models.TEACHER:
+		teacherInfo, ok := account.PermissionInfo.(models.TeacherInfo)
+		if !ok {
+			return errors.New("invalid permission info for teacher")
+		}
+		if teacherInfo.SchoolId == "" {
+			return errors.New("school id is empty for teacher")
+		}
+	case models.ADMIN:
+		_, ok := account.PermissionInfo.(models.AdminInfo)
+		if !ok {
+			return errors.New("invalid permission info for admin")
+		}
+	default:
+		return errors.New("invalid permission level")
+	}
+	return nil
+}
 
 // Validate account depending on their type
 func ValidateAccount(account *models.Account) error {
@@ -18,7 +73,7 @@ func ValidateAccount(account *models.Account) error {
 	}
 
 	// Account 필드 값 확인
-	if account.UserId == "" {
+	if account.UserId == uuid.Nil {
 		return errors.New("account user id is empty")
 	}
 	if account.Name == "" {
@@ -65,11 +120,6 @@ func ValidateAccount(account *models.Account) error {
 		if !ok {
 			return errors.New("invalid permission info for admin")
 		}
-	case models.UNKNOWN:
-		_, ok := account.PermissionInfo.(models.Unknown)
-		if !ok {
-			return errors.New("invalid permission info for unknown")
-		}
 	default:
 		return errors.New("invalid permission level")
 	}
@@ -90,7 +140,7 @@ func ValidateTimetable(tt *models.Timetable) error {
 }
 
 func ValidateTimeTableEntry(entry *models.TimetableEntry) error {
-	if entry.TeacherId == "" {
+	if entry.TeacherId == uuid.Nil {
 		return errors.New("teacher id field is empty")
 	}
 	if entry.Location == "" {
@@ -113,7 +163,7 @@ func ValidateChecklist(checklist *models.Checklist) error {
 	if checklist == nil {
 		return errors.New("checklist is nil")
 	}
-	if checklist.StudentId == "" {
+	if checklist.StudentId == uuid.Nil {
 		return errors.New("student id is required")
 	}
 	if checklist.Title == "" {
@@ -194,6 +244,22 @@ func ValidateEvents(events *models.Events) error {
 	return nil
 }
 
+func ValidateSchool(events *models.School) error {
+	if events.SchoolId == "" {
+		return fmt.Errorf("school ID is required")
+	}
+	if events.RegionId == "" {
+		return fmt.Errorf("region ID is required")
+	}
+	if events.SchoolName == "" {
+		return fmt.Errorf("school name ID is required")
+	}
+	if events.RegionName == "" {
+		return fmt.Errorf("region name is required")
+	}
+	return nil
+}
+
 func isValidAttendanceType(attendanceType models.AttendanceType) bool {
 	return attendanceType == models.YES || attendanceType == models.IGNORED || attendanceType == models.NO
 }
@@ -217,25 +283,4 @@ func HashPassword(password []byte) ([]byte, error) {
 func VerifyPassword(hashedPassword, password []byte) bool {
 	err := bcrypt.CompareHashAndPassword(hashedPassword, password)
 	return err == nil
-}
-
-func GenerateJWT(userId int, secretKey string) (string, error) {
-	// Define the expiration time for the token
-	expirationTime := time.Now().Add(24 * time.Hour).Unix()
-
-	// Create a new claims instance
-	claims := jwt.MapClaims{}
-	claims["user_id"] = userId
-	claims["exp"] = expirationTime
-
-	// Create a new token instance using the claims
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	// Sign the token with the secret key
-	signedToken, err := token.SignedString([]byte(secretKey))
-	if err != nil {
-		return "", err
-	}
-
-	return signedToken, nil
 }

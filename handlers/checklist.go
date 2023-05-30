@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/google/uuid"
 	"net/http"
 	"strconv"
 
@@ -11,14 +12,14 @@ import (
 
 // LockChecklist locks the checklist
 func LockChecklist(c *gin.Context) {
-	studentID, exists := c.Get("userID")
+	studentID, exists := c.Get("user_id")
 
 	if !exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user ID from context"})
 		return
 	}
 
-	temp := models.UserId(studentID.(string))
+	temp := studentID.(uuid.UUID)
 	checklist, err := db.GetChecklistsOfStudent(&temp)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -37,14 +38,14 @@ func LockChecklist(c *gin.Context) {
 
 // UnLockChecklist unlocks the checklist
 func UnLockChecklist(c *gin.Context) {
-	studentID, exists := c.Get("userID")
+	studentID, exists := c.Get("user_id")
 
 	if !exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user ID from context"})
 		return
 	}
 
-	temp := models.UserId(studentID.(string))
+	temp := studentID.(uuid.UUID)
 	checklist, err := db.GetChecklistsOfStudent(&temp)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -64,14 +65,14 @@ func UnLockChecklist(c *gin.Context) {
 // GetChecklist handles the GET /checklist endpoint
 func GetChecklist(c *gin.Context) {
 	// Get user ID from request context
-	userID, exists := c.Get("userID")
+	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user ID from context"})
 		return
 	}
 
 	// Get checklist items from database
-	temp := models.UserId(userID.(string))
+	temp := userID.(uuid.UUID)
 	items, err := db.GetChecklistsOfStudent(&temp)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get checklist items from database"})
@@ -84,12 +85,12 @@ func GetChecklist(c *gin.Context) {
 // CreateChecklist handles the POST /checklist endpoint
 func CreateChecklist(c *gin.Context) {
 	// Get user ID from request context
-	userID, exists := c.Get("userID")
+	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user ID from context"})
 		return
 	}
-	temp := models.UserId(userID.(string))
+	temp := userID.(uuid.UUID)
 
 	// Parse request body
 	var checklist models.Checklist
@@ -111,7 +112,7 @@ func CreateChecklist(c *gin.Context) {
 	}
 
 	// Set user ID and completed status for new checklist
-	checklist.StudentId = models.UserId(userID.(string))
+	checklist.StudentId = userID.(uuid.UUID)
 	checklist.Title = "checklist"
 
 	// Create checklist checklist in database
