@@ -25,7 +25,7 @@ func CheckAuthHeader(c *gin.Context) {
 	}
 
 	token := authHeader[7:]
-	stringId, err := utils.DecryptJWT(&token, "user_id")
+	id, err := utils.ParseJWT(&token, "user_id")
 	if err != nil {
 		// 이 미친놈들이 오류 반환하다가 또 오류가 날 수도 있냐
 		// c.AbortWithError()......... >:(
@@ -34,6 +34,8 @@ func CheckAuthHeader(c *gin.Context) {
 		})
 		return
 	}
+
+	stringId := id.(string)
 	userID, _ := uuid.Parse(stringId)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -63,12 +65,14 @@ func VerifyToken(c *gin.Context) {
 	}
 
 	// Verify JWT token
-	stringID, err := utils.DecryptJWT(&tokenString, "user_id")
+	id, err := utils.ParseJWT(&tokenString, "user_id")
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 		c.Abort()
 		return
 	}
+	stringID := id.(string)
+
 	userID, err := uuid.Parse(stringID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

@@ -165,14 +165,14 @@ func CreateAccount(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	decrypted, err := utils.DecryptJWT(&contents, "account")
+	decrypted, err := utils.ParseJWT(&contents, "account")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	var account models.Account
-	err = json.Unmarshal([]byte(decrypted), &account)
+	err = json.Unmarshal([]byte(decrypted.(string)), &account)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

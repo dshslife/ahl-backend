@@ -8,6 +8,7 @@ import (
 	"github.com/username/schoolapp/handlers"
 	"github.com/username/schoolapp/middlewares"
 	"github.com/username/schoolapp/models"
+	"github.com/username/schoolapp/utils"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"log"
@@ -23,6 +24,7 @@ func main() {
 
 	db.Connect()
 	models.InitAllergies()
+	utils.InitKeys()
 
 	handlers.Oauth2Application = &oauth2.Config{
 		ClientID:     os.Getenv("OAUTH_ID"),

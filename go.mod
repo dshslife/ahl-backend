@@ -3,6 +3,7 @@ module github.com/username/schoolapp
 go 1.19
 
 require (
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-gonic/gin v1.8.2
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/google/uuid v1.3.0
@@ -11,12 +12,13 @@ require (
 	golang.org/x/oauth2 v0.8.0
 )
 
-require github.com/vishalkuo/bimap v0.0.0-20230512162637-a5362d2f581f // indirect
+require (
+	github.com/go-jose/go-jose/v3 v3.0.0
+	github.com/vishalkuo/bimap v0.0.0-20230512162637-a5362d2f581f
+)
 
 require (
 	cloud.google.com/go/compute/metadata v0.2.0 // indirect
-	// TODO 현재 jwt-go는 더이상 지원되지 않음. 다른걸로 교체할 것
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
