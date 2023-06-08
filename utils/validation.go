@@ -6,65 +6,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/username/schoolapp/models"
 	"golang.org/x/crypto/bcrypt"
-	"regexp"
 	"time"
 )
-
-// ValidateNewAccount ValidateNewAccount와 동일하나 ID 검사는 안함
-func ValidateNewAccount(account *models.Account) error {
-	if account == nil {
-		return errors.New("account is nil")
-	}
-
-	if account.Name == "" {
-		return errors.New("account name is empty")
-	}
-	if account.Email == "" {
-		return errors.New("account email is empty")
-	}
-	if !isEmailValid(account.Email) {
-		return errors.New("account email is invalid")
-	}
-	if len(account.Password) == 0 {
-		return errors.New("account password is empty")
-	}
-	// PermissionInfo 필드 값 확인
-	switch account.GetLevel() {
-	case models.STUDENT:
-		studentInfo, ok := account.PermissionInfo.(models.StudentInfo)
-		if !ok {
-			return errors.New("invalid permission info for student")
-		}
-		if studentInfo.SchoolId == "" {
-			return errors.New("school id is empty for student")
-		}
-		if studentInfo.Grade == 0 {
-			return errors.New("grade is empty for student")
-		}
-		if studentInfo.Class == 0 {
-			return errors.New("class is empty for student")
-		}
-		if studentInfo.Number == 0 {
-			return errors.New("number is empty for student")
-		}
-	case models.TEACHER:
-		teacherInfo, ok := account.PermissionInfo.(models.TeacherInfo)
-		if !ok {
-			return errors.New("invalid permission info for teacher")
-		}
-		if teacherInfo.SchoolId == "" {
-			return errors.New("school id is empty for teacher")
-		}
-	case models.ADMIN:
-		_, ok := account.PermissionInfo.(models.AdminInfo)
-		if !ok {
-			return errors.New("invalid permission info for admin")
-		}
-	default:
-		return errors.New("invalid permission level")
-	}
-	return nil
-}
 
 // Validate account depending on their type
 func ValidateAccount(account *models.Account) error {
@@ -82,7 +25,7 @@ func ValidateAccount(account *models.Account) error {
 	if account.Email == "" {
 		return errors.New("account email is empty")
 	}
-	if !isEmailValid(account.Email) {
+	if !IsEmailValid(account.Email) {
 		return errors.New("account email is invalid")
 	}
 	if len(account.Password) == 0 {
@@ -193,26 +136,8 @@ func ValidateCafeteriaMenu(menu *models.CafeteriaMenu) error {
 		return errors.New("missing date")
 	}
 
-	if len(menu.Items) == 0 {
-		return errors.New("menu has no items")
-	}
-
-	for _, item := range menu.Items {
-		if item.Name == "" {
-			return errors.New("missing item name in menu")
-		}
-
-		if len(item.Allergies) > 0 {
-			for _, allergy := range item.Allergies {
-				if !(1 <= allergy && allergy <= 13) {
-					return fmt.Errorf("invalid allergy type: %s", allergy)
-				}
-			}
-		}
-
-		if item.Contents == "" {
-			return errors.New("missing contents in menu item")
-		}
+	if menu.Contents == "" {
+		return errors.New("missing contents")
 	}
 
 	return nil
@@ -262,14 +187,6 @@ func ValidateSchool(events *models.School) error {
 
 func isValidAttendanceType(attendanceType models.AttendanceType) bool {
 	return attendanceType == models.YES || attendanceType == models.IGNORED || attendanceType == models.NO
-}
-
-// Check if email address is valid
-func isEmailValid(email string) bool {
-	// Regular expression for email validation
-	emailRegex := regexp.MustCompile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")
-
-	return emailRegex.MatchString(email)
 }
 
 func HashPassword(password []byte) ([]byte, error) {

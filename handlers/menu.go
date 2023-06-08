@@ -77,7 +77,7 @@ func UpdateCafeteriaMenu(c *gin.Context) {
 	// Update existing menu with new data
 	menu.Date = updatedMenu.Date
 	menu.MealName = updatedMenu.MealName
-	menu.Items = updatedMenu.Items
+	menu.Contents = updatedMenu.Contents
 
 	// Update menu in database
 	err = db.UpdateMenu(menu)

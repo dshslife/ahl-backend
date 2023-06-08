@@ -11,6 +11,8 @@ require (
 	golang.org/x/oauth2 v0.8.0
 )
 
+require github.com/vishalkuo/bimap v0.0.0-20230512162637-a5362d2f581f // indirect
+
 require (
 	cloud.google.com/go/compute/metadata v0.2.0 // indirect
 	// TODO 현재 jwt-go는 더이상 지원되지 않음. 다른걸로 교체할 것

@@ -1,16 +1,15 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/username/schoolapp/db"
 	"github.com/username/schoolapp/models"
 	"github.com/username/schoolapp/utils"
-	"io"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 func GetAllAccounts(c *gin.Context) {
@@ -50,29 +49,97 @@ func GetAccountById(c *gin.Context) {
 	c.JSON(http.StatusOK, account)
 }
 
-func CreateAccount(c *gin.Context) {
-	buf := new(strings.Builder)
-	_, err := io.Copy(buf, c.Request.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	contents := buf.String()
-	decrypted, err := utils.DecryptJWT(&contents, "account")
+// CreateAccountUnsafe 테스트 전용, TODO 무조건 삭제할 것!
+func CreateAccountUnsafe(c *gin.Context) {
+	body, _, err := utils.ReadAll(c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	var account models.Account
-	err = json.Unmarshal([]byte(decrypted), &account)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	asMap := make(map[string]interface{})
+
+	_ = json.Unmarshal([]byte(body), &asMap)
+
+	necessary := [5]string{"name", "email", "password", "permission_level", "permission"}
+	for _, value := range necessary {
+		if asMap[value] == "" {
+			c.String(http.StatusBadRequest, "%s required", value)
+			return
+		}
+	}
+	account.Name = asMap["name"].(string)
+	account.Email = asMap["email"].(string)
+
+	_, err = db.GetAccountByEmail(&account.Email)
+	if err != sql.ErrNoRows {
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		} else {
+			c.Status(http.StatusForbidden)
+		}
 		return
 	}
 
-	if err := utils.ValidateNewAccount(&account); err != nil {
+	passwordHash, err := utils.HashPassword([]byte(asMap["password"].(string)))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	account.Password = passwordHash
+	level := asMap["permission_level"]
+
+	permissionInfoRaw := asMap["permission"]
+	permissionInfo, ok := permissionInfoRaw.(map[string]string)
+	if !ok {
+		_, isEmptyMap := permissionInfoRaw.(interface{})
+		if !isEmptyMap {
+			c.String(http.StatusBadRequest, "invalid permission info")
+			return
+		}
+		permissionInfo = make(map[string]string)
+	}
+	switch level {
+	case "student":
+		{
+			permission := models.StudentInfo{}
+
+			permission.Class, err = strconv.Atoi(permissionInfo["class"])
+			if err != nil {
+				c.String(http.StatusBadRequest, "class should be number")
+				return
+			}
+			permission.Grade, err = strconv.Atoi(permissionInfo["grade"])
+			if err != nil {
+				c.String(http.StatusBadRequest, "grade should be number")
+				return
+			}
+			permission.Number, err = strconv.Atoi(permissionInfo["number"])
+			if err != nil {
+				c.String(http.StatusBadRequest, "class number should be number, duh")
+				return
+			}
+			permission.SchoolId = models.SchoolId(permissionInfo["school_id"])
+			account.PermissionInfo = permission
+		}
+	case "teacher":
+		{
+			permission := models.TeacherInfo{}
+			permission.SchoolId = models.SchoolId(permissionInfo["school_id"])
+			account.PermissionInfo = permission
+		}
+	case "admin":
+		{
+			permission := models.AdminInfo{}
+			account.PermissionInfo = permission
+		}
+	default:
+		c.String(http.StatusBadRequest, "unknown permission level")
+		return
+	}
+
+	if err := db.ValidateNewAccount(&account); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
@@ -90,6 +157,43 @@ func CreateAccount(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"id": id,
 	})
+}
+
+func CreateAccount(c *gin.Context) {
+	contents, _, err := utils.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	decrypted, err := utils.DecryptJWT(&contents, "account")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var account models.Account
+	err = json.Unmarshal([]byte(decrypted), &account)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := db.ValidateNewAccount(&account); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	_, err = db.CreateAccount(&account)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.Status(http.StatusOK)
 }
 
 func UpdateAccount(c *gin.Context) {

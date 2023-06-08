@@ -1,40 +1,38 @@
 package models
 
+import "github.com/vishalkuo/bimap"
+
 // CafeteriaMenu struct represents a cafeteria menu
 type CafeteriaMenu struct {
 	ID       DbId `json:"id"`
 	SchoolId `json:"school_id"`
-	MealName string      `json:"meal_name"`
-	Date     string      `json:"date"`
-	Items    []MenuEntry `json:"items"`
-}
-
-// MenuEntry struct represents an item in a cafeteria menu
-type MenuEntry struct {
-	Name      string        `json:"name"`
-	Allergies []AllergyType `json:"allergy,omitempty"`
-	Contents  string        `json:"contents"`
+	MealName string `json:"meal_name"`
+	Date     string `json:"date"`
+	Contents string `json:"items"`
 }
 
 type AllergyType int8
 
-var (
-	난류   = 1
-	우유   = 2
-	메밀   = 3
-	땅콩   = 4
-	대두   = 5
-	밀    = 6
-	고등어  = 7
-	게    = 8
-	새우   = 9
-	돼지고기 = 10
-	복숭아  = 11
-	토마토  = 12
-	아황산염 = 13
-	호두   = 14
-	닭고기  = 15
-	쇠고기  = 16
-	오징어  = 17
-	조개류  = 18
-)
+var Allergies = bimap.NewBiMap[string, int8]()
+
+func InitAllergies() {
+	Allergies.Insert("난류", 1)
+	Allergies.Insert("우유", 2)
+	Allergies.Insert("메밀", 3)
+	Allergies.Insert("땅콩", 4)
+	Allergies.Insert("대두", 5)
+	Allergies.Insert("밀", 6)
+	Allergies.Insert("고등어", 7)
+	Allergies.Insert("게", 8)
+	Allergies.Insert("새우", 9)
+	Allergies.Insert("돼지고", 10)
+	Allergies.Insert("복숭아", 11)
+	Allergies.Insert("토마토", 12)
+	Allergies.Insert("아황산", 13)
+	Allergies.Insert("호두", 14)
+	Allergies.Insert("닭고기", 15)
+	Allergies.Insert("쇠고기", 16)
+	Allergies.Insert("오징어", 17)
+	Allergies.Insert("조개류", 18)
+	Allergies.MakeImmutable()
+}

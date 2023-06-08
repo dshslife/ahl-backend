@@ -1,10 +1,9 @@
-package utils
+package models
 
 import (
 	"bytes"
 	"encoding/binary"
 	"github.com/google/uuid"
-	"github.com/username/schoolapp/models"
 )
 
 func Int64ArrayToBytes(arr []int64) []byte {
@@ -31,14 +30,6 @@ func BytesToInt64Array(data []byte) []int64 {
 	return int64Array
 }
 
-func Int64ArrayToDbIdArray(arr []int64) []models.DbId {
-	dbIdArray := make([]models.DbId, len(arr))
-	for i, value := range arr {
-		dbIdArray[i] = models.DbId(value)
-	}
-	return dbIdArray
-}
-
 func UuidArrayToBytes(arr []uuid.UUID) []byte {
 	byteArray := make([]byte, 0)
 	for _, u := range arr {
@@ -54,12 +45,4 @@ func BytesToUUIDArray(data []byte) []uuid.UUID {
 		copy(uuidArray[i][:], data[i*16:(i+1)*16])
 	}
 	return uuidArray
-}
-
-func DbIdArrayToInt64Array(arr []models.DbId) []int64 {
-	int64Array := make([]int64, len(arr))
-	for i, value := range arr {
-		int64Array[i] = int64(value)
-	}
-	return int64Array
 }

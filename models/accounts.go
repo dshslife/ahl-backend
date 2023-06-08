@@ -1,6 +1,8 @@
 package models
 
-import "errors"
+import (
+	"errors"
+)
 import "github.com/google/uuid"
 
 // Account struct represents a user
@@ -13,39 +15,48 @@ type Account struct {
 	PermissionInfo `json:"permission"`
 }
 
-type SqlAccount struct {
+type FlatAccount struct {
 	DbId
-	UserId   uuid.UUID
+	UserId   []byte
 	Name     string
 	Email    string
 	Password []byte
 	PermissionLevel
 	SchoolId
-	Timetable
-	Grade       int
-	Class       int
-	Number      int
-	ChecklistId DbId
-	Friends     []uuid.UUID
+	TimeTableEntries  []byte
+	TimeTableIsPublic bool
+	Grade             int
+	Class             int
+	Number            int
+	ChecklistId       DbId
+	Friends           []byte
 }
 
-func (sqlAccount SqlAccount) Finalize() (Account, error) {
+func (flatAccount FlatAccount) Restore() (Account, error) {
 	var info PermissionInfo
 	var err error
-	switch sqlAccount.PermissionLevel {
+
+	timetableEntries := Int64ArrayToDbIdArray(BytesToInt64Array(flatAccount.TimeTableEntries))
+	friends := BytesToUUIDArray(flatAccount.Friends)
+
+	switch flatAccount.PermissionLevel {
 	case STUDENT:
+		timetable := Timetable{
+			Entries:  timetableEntries,
+			IsPublic: flatAccount.TimeTableIsPublic,
+		}
 		info = StudentInfo{
-			SchoolId:    sqlAccount.SchoolId,
-			Timetable:   sqlAccount.Timetable,
-			Grade:       sqlAccount.Grade,
-			Class:       sqlAccount.Class,
-			Number:      sqlAccount.Number,
-			ChecklistId: sqlAccount.ChecklistId,
-			Friends:     sqlAccount.Friends,
+			SchoolId:    flatAccount.SchoolId,
+			Timetable:   timetable,
+			Grade:       flatAccount.Grade,
+			Class:       flatAccount.Class,
+			Number:      flatAccount.Number,
+			ChecklistId: flatAccount.ChecklistId,
+			Friends:     friends,
 		}
 	case TEACHER:
 		info = TeacherInfo{
-			SchoolId: sqlAccount.SchoolId,
+			SchoolId: flatAccount.SchoolId,
 		}
 	case ADMIN:
 		info = AdminInfo{}
@@ -55,21 +66,26 @@ func (sqlAccount SqlAccount) Finalize() (Account, error) {
 	if err != nil {
 		return Account{}, err
 	}
+
+	userId, err := uuid.FromBytes(flatAccount.UserId)
+	if err != nil {
+		return Account{}, err
+	}
 	return Account{
-		DbId:           sqlAccount.DbId,
-		UserId:         sqlAccount.UserId,
-		Name:           sqlAccount.Name,
-		Email:          sqlAccount.Email,
-		Password:       sqlAccount.Password,
+		DbId:           flatAccount.DbId,
+		UserId:         userId,
+		Name:           flatAccount.Name,
+		Email:          flatAccount.Email,
+		Password:       flatAccount.Password,
 		PermissionInfo: info,
 	}, nil
 }
 
-func (account Account) ToSql() (SqlAccount, error) {
-	var toReturn SqlAccount
+func (account Account) ToSql() (FlatAccount, error) {
+	var toReturn FlatAccount
 	var err error
 	toReturn.DbId = account.DbId
-	toReturn.UserId = account.UserId
+	toReturn.UserId = account.UserId[:]
 	toReturn.Name = account.Name
 	toReturn.Email = account.Email
 	toReturn.Password = account.Password
@@ -79,12 +95,13 @@ func (account Account) ToSql() (SqlAccount, error) {
 	case STUDENT:
 		info := account.PermissionInfo.(StudentInfo)
 		toReturn.SchoolId = info.SchoolId
-		toReturn.Timetable = info.Timetable
+		toReturn.TimeTableEntries = Int64ArrayToBytes(DbIdArrayToInt64Array(info.Timetable.Entries))
+		toReturn.TimeTableIsPublic = info.Timetable.IsPublic
 		toReturn.Grade = info.Grade
 		toReturn.Class = info.Class
 		toReturn.Number = info.Number
 		toReturn.ChecklistId = info.ChecklistId
-		toReturn.Friends = info.Friends
+		toReturn.Friends = UuidArrayToBytes(info.Friends)
 	case TEACHER:
 		info := account.PermissionInfo.(TeacherInfo)
 		toReturn.SchoolId = info.SchoolId
@@ -95,14 +112,14 @@ func (account Account) ToSql() (SqlAccount, error) {
 	}
 
 	if err != nil {
-		return SqlAccount{}, err
+		return FlatAccount{}, err
 	}
 
 	return toReturn, nil
 }
 
 type PermissionLevel int8
-type DbId int
+type DbId int64
 
 // PermissionInfo 유저 권한에 따른 추가 정보, 권한 레벨은 무조건 있어야 함
 // StudentInfo, TeacherInfo, AdminInfo, Unknown이 아래 인터페이스를 구현함.

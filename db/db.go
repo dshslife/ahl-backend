@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
@@ -16,11 +17,11 @@ var db *sql.DB
 
 func createTables() {
 	// prepare query
-	createSchools := "CREATE TABLE IF NOT EXISTS `schools` (id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY, `school_id` VARCHAR(255) NOT NULL, `region_id` VARCHAR(255) NOT NULL, `school_name` VARCHAR(255) NOT NULL, `region_name` VARCHAR(255) NOT NULL, `organization_email_only` BOOL NOT NULL)  ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
-	createAccounts := "CREATE TABLE IF NOT EXISTS `accounts` (`id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY, `user_id` VARCHAR(255) NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, `password` TINYBLOB NOT NULL, `permission_level` TINYINT NOT NULL, `school_id` VARCHAR(255), `timetable` TEXT NOT NULL, `grade` INT, `class` INT, `number` INT, `checklist_id` VARCHAR(255) NOT NULL, `friends` TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
-	createTimeTables := "CREATE TABLE IF NOT EXISTS `timetables` (`id` INT(11) NOT NULL AUTO_INCREMENT, `teacher_id` INT(11) NOT NULL, `location` VARCHAR(255) NOT NULL, `day` INT(11) NOT NULL, `period` TIME NOT NULL, `subject` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
-	createCafeteria := "CREATE TABLE IF NOT EXISTS `cafeteria_menus` ( `id` INT(11) NOT NULL AUTO_INCREMENT, `school_id` VARCHAR(255) NOT NULL, `meal_name` VARCHAR(255) NOT NULL, `date` DATE NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
-	createChecklists := "CREATE TABLE IF NOT EXISTS `checklists` (`id` INT(11) NOT NULL AUTO_INCREMENT, `student_id` VARCHAR(255) NOT NULL, `title` TEXT NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+	createSchools := "CREATE TABLE IF NOT EXISTS `schools` (id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY, `school_id` VARCHAR(255) NOT NULL, `region_id` VARCHAR(255) NOT NULL, `school_name` VARCHAR(255) NOT NULL, `region_name` VARCHAR(255) NOT NULL, `school_email_only` BOOL NOT NULL, `school_email` VARCHAR(255) NOT NULL)  ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+	createAccounts := "CREATE TABLE IF NOT EXISTS `accounts` (`id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY, `user_id` TINYBLOB NOT NULL, `name` VARCHAR(255) NOT NULL, `email` VARCHAR(255) NOT NULL, `password` TINYBLOB NOT NULL, `permission_level` TINYINT NOT NULL, `school_id` VARCHAR(255), `timetable_list` LONGBLOB, `timetable_is_public` BOOL,`grade` TINYINT, `class` TINYINT, `number` TINYINT, `checklist_id` INT(11), `friends` LONGBLOB) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+	createTimeTables := "CREATE TABLE IF NOT EXISTS `timetables` (`id` INT(11) NOT NULL AUTO_INCREMENT, `teacher_id` TINYBLOB NOT NULL, `location` VARCHAR(255) NOT NULL, `day` INT(11) NOT NULL, `period` TIME NOT NULL, `subject` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+	createCafeteria := "CREATE TABLE IF NOT EXISTS `cafeteria_menus` ( `id` INT(11) NOT NULL AUTO_INCREMENT, `school_id` VARCHAR(255) NOT NULL, `meal_name` VARCHAR(255) NOT NULL, `date` DATE NOT NULL, `contents` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+	createChecklists := "CREATE TABLE IF NOT EXISTS `checklists` (`id` INT(11) NOT NULL AUTO_INCREMENT, `student_id` TINYBLOB NOT NULL, `title` TEXT NOT NULL, `items` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
 	createEvents := "CREATE TABLE IF NOT EXISTS `schoolevents` (`id` INT(11) NOT NULL AUTO_INCREMENT, `school_id` VARCHAR(255) NOT NULL, `month` INT(11) NOT NULL, `events` TEXT NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
 
 	// Execute query
@@ -89,13 +90,13 @@ func GetAccountByEmail(Email *string) (*models.Account, error) {
 	// Execute query
 	row := db.QueryRow(query, Email)
 
-	// Scan row into sqlAccount object
-	var sqlAccount models.SqlAccount
-	err := row.Scan(&sqlAccount.DbId, &sqlAccount.UserId, &sqlAccount.Name, &sqlAccount.Email, &sqlAccount.Password, &sqlAccount.PermissionLevel, &sqlAccount.SchoolId, &sqlAccount.Timetable, &sqlAccount.Grade, &sqlAccount.Class, &sqlAccount.Number, &sqlAccount.ChecklistId, &sqlAccount.Friends)
+	// Scan row into flataccount object
+	var flataccount models.FlatAccount
+	err := row.Scan(&flataccount.DbId, &flataccount.UserId, &flataccount.Name, &flataccount.Email, &flataccount.Password, &flataccount.PermissionLevel, &flataccount.SchoolId, &flataccount.TimeTableEntries, &flataccount.TimeTableIsPublic, &flataccount.Grade, &flataccount.Class, &flataccount.Number, &flataccount.ChecklistId, &flataccount.Friends)
 	if err != nil {
 		return nil, err
 	}
-	user, err := sqlAccount.Finalize()
+	user, err := flataccount.Restore()
 	if err != nil {
 		return nil, err
 	}
@@ -112,12 +113,12 @@ func GetAccountById(id *uuid.UUID) (*models.Account, error) {
 	row := db.QueryRow(query, id)
 
 	// Scan row into user object
-	var sqlAccount models.SqlAccount
-	err := row.Scan(&sqlAccount.DbId, &sqlAccount.UserId, &sqlAccount.Name, &sqlAccount.Email, &sqlAccount.Password, &sqlAccount.PermissionLevel, &sqlAccount.SchoolId, &sqlAccount.Timetable, &sqlAccount.Grade, &sqlAccount.Class, &sqlAccount.Number, &sqlAccount.ChecklistId, &sqlAccount.Friends)
+	var flataccount models.FlatAccount
+	err := row.Scan(&flataccount.DbId, &flataccount.UserId, &flataccount.Name, &flataccount.Email, &flataccount.Password, &flataccount.PermissionLevel, &flataccount.SchoolId, &flataccount.TimeTableEntries, &flataccount.TimeTableIsPublic, &flataccount.Grade, &flataccount.Class, &flataccount.Number, &flataccount.ChecklistId, &flataccount.Friends)
 	if err != nil {
 		return nil, err
 	}
-	user, err := sqlAccount.Finalize()
+	user, err := flataccount.Restore()
 	if err != nil {
 		return nil, err
 	}
@@ -128,17 +129,17 @@ func GetAccountById(id *uuid.UUID) (*models.Account, error) {
 // CreateAccount creates a new student
 func CreateAccount(account *models.Account) (models.DbId, error) {
 	// Prepare query
-	query := "INSERT INTO accounts (user_id, name, email, password, permission_level, school_id, timetable, grade, class, number, checklist_id, friends) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+	query := "INSERT INTO accounts (user_id, name, email, password, permission_level, school_id, timetable_list, timetable_is_public, grade, class, number, checklist_id, friends) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
 	var result sql.Result
 	var err error
 
-	sqlAccount, err := account.ToSql()
+	flataccount, err := account.ToSql()
 	if err != nil {
 		return models.DbId(0), err
 	}
 
-	result, err = db.Exec(query, sqlAccount.UserId, sqlAccount.Name, sqlAccount.Email, sqlAccount.Password, sqlAccount.PermissionLevel, sqlAccount.SchoolId, sqlAccount.Timetable, sqlAccount.Grade, sqlAccount.Class)
+	result, err = db.Exec(query, flataccount.UserId, flataccount.Name, flataccount.Email, flataccount.Password, flataccount.PermissionLevel, flataccount.SchoolId, flataccount.TimeTableEntries, flataccount.TimeTableIsPublic, flataccount.Grade, flataccount.Class, flataccount.Number, flataccount.ChecklistId, flataccount.Friends)
 
 	if err != nil {
 		return 0, err
@@ -158,14 +159,14 @@ func CreateAccount(account *models.Account) (models.DbId, error) {
 // UpdateAccount updates a student
 func UpdateAccount(account *models.Account) error {
 	// Prepare query
-	query := "UPDATE accounts SET user_id = ?, name = ?, email = ?, password = ?, permission_level = ?, school_id = ?, timetable = ?, grade = ?, class = ?, number = ?, checklist_id = ?, friends = ? WHERE id = ?"
+	query := "UPDATE accounts SET user_id = ?, name = ?, email = ?, password = ?, permission_level = ?, school_id = ?, timetable_list = ?, timetable_is_public = ?, grade = ?, class = ?, number = ?, checklist_id = ?, friends = ? WHERE id = ?"
 
-	sqlAccount, err := account.ToSql()
+	flataccount, err := account.ToSql()
 	if err != nil {
 		return err
 	}
 	// Execute query
-	_, err = db.Exec(query, sqlAccount.UserId, sqlAccount.Name, sqlAccount.Email, sqlAccount.Password, sqlAccount.PermissionLevel, sqlAccount.SchoolId, sqlAccount.Timetable, sqlAccount.Grade, sqlAccount.Class, sqlAccount.Number, sqlAccount.ChecklistId, sqlAccount.ChecklistId, sqlAccount.Friends, sqlAccount.DbId)
+	_, err = db.Exec(query, flataccount.UserId, flataccount.Name, flataccount.Email, flataccount.Password, flataccount.PermissionLevel, flataccount.SchoolId, flataccount.TimeTableEntries, flataccount.TimeTableIsPublic, flataccount.Grade, flataccount.Class, flataccount.Number, flataccount.ChecklistId, flataccount.ChecklistId, flataccount.Friends, flataccount.DbId)
 	if err != nil {
 		return err
 	}
@@ -277,7 +278,7 @@ func GetMenuByID(id models.DbId) (*models.CafeteriaMenu, error) {
 
 	// Scan row into cafeteria menu object
 	var menu models.CafeteriaMenu
-	err := row.Scan(&menu.ID, &menu.SchoolId, &menu.MealName, &menu.Date, &menu.Items)
+	err := row.Scan(&menu.ID, &menu.SchoolId, &menu.MealName, &menu.Date, &menu.Contents)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +296,7 @@ func GetMenu(date time.Time) (*models.CafeteriaMenu, error) {
 
 	// Scan row into cafeteria menu object
 	var menu models.CafeteriaMenu
-	err := row.Scan(&menu.ID, &menu.SchoolId, &menu.MealName, &menu.Date, &menu.Items)
+	err := row.Scan(&menu.ID, &menu.SchoolId, &menu.MealName, &menu.Date, &menu.Contents)
 	if err != nil {
 		return nil, err
 	}
@@ -311,10 +312,10 @@ func CreateMenu(menu *models.CafeteriaMenu) (models.DbId, error) {
 	}
 
 	// Prepare query to insert menu
-	menuQuery := "INSERT INTO cafeteria_menus (school_id, meal_name, date, items) VALUES (?, ?, ?, ?)"
+	menuQuery := "INSERT INTO cafeteria_menus (school_id, meal_name, date, contents) VALUES (?, ?, ?, ?)"
 
 	// Execute query to insert menu
-	menuResult, err := db.Exec(menuQuery, menu.SchoolId, menu.MealName, menu.Date, menu.Items)
+	menuResult, err := db.Exec(menuQuery, menu.SchoolId, menu.MealName, menu.Date, menu.Contents)
 	if err != nil {
 		return 0, err
 	}
@@ -337,10 +338,10 @@ func UpdateMenu(menu *models.CafeteriaMenu) error {
 	}
 
 	// Prepare query to insert menu
-	menuQuery := "UPDATE cafeteria_menus SET school_id = ?, meal_name = ?, date = ?, items = ? WHERE id = ?"
+	menuQuery := "UPDATE cafeteria_menus SET school_id = ?, meal_name = ?, date = ?, contents = ? WHERE id = ?"
 
 	// Execute query to insert menu
-	_, err = db.Exec(menuQuery, menu.SchoolId, menu.MealName, menu.Date, menu.Items, menu.ID)
+	_, err = db.Exec(menuQuery, menu.SchoolId, menu.MealName, menu.Date, menu.Contents, menu.ID)
 	if err != nil {
 		return err
 	}
@@ -553,10 +554,10 @@ func CreateSchool(school *models.School) (models.DbId, error) {
 		return 0, err
 	}
 	// Prepare query
-	query := "INSERT INTO schools (school_id, region_id, school_name, region_name, organization_email_only) VALUES (?, ?, ?, ?, ?)"
+	query := "INSERT INTO schools (school_id, region_id, school_name, region_name, school_email_only, school_email) VALUES (?, ?, ?, ?, ?, ?)"
 
 	// Execute query
-	result, err := db.Exec(query, school.SchoolId, school.RegionId, school.SchoolName, school.RegionName, school.OrganizationEmailOnly)
+	result, err := db.Exec(query, school.SchoolId, school.RegionId, school.SchoolName, school.RegionName, school.SchoolEmailOnly, school.SchoolEmail)
 	if err != nil {
 		return 0, err
 	}
@@ -570,4 +571,84 @@ func CreateSchool(school *models.School) (models.DbId, error) {
 	school.ID = models.DbId(id)
 
 	return school.ID, nil
+}
+
+func GetSchool(id models.SchoolId) (*models.School, error) {
+	// Prepare query
+	query := "SELECT * FROM schools WHERE school_id = ?"
+
+	// Execute query
+	row := db.QueryRow(query, id)
+
+	// Scan row into student object
+	var school models.School
+	err := row.Scan(&school.ID, &school.SchoolId, &school.RegionId, &school.SchoolName, &school.RegionName, &school.SchoolEmailOnly)
+	if err != nil {
+		return nil, err
+	}
+
+	return &school, nil
+}
+
+// ValidateNewAccount ValidateNewAccount와 동일하나 ID 검사는 안함
+func ValidateNewAccount(account *models.Account) error {
+	if account == nil {
+		return errors.New("account is nil")
+	}
+
+	if account.Name == "" {
+		return errors.New("account name is empty")
+	}
+	if account.Email == "" {
+		return errors.New("account email is empty")
+	}
+	if !utils.IsEmailValid(account.Email) {
+		return errors.New("account email is invalid")
+	}
+	if len(account.Password) == 0 {
+		return errors.New("account password is empty")
+	}
+	if account.PermissionInfo == nil {
+		return errors.New("permission info is empty")
+	}
+	// PermissionInfo 필드 값 확인
+	switch account.PermissionInfo.GetLevel() {
+	case models.STUDENT:
+		studentInfo, ok := account.PermissionInfo.(models.StudentInfo)
+		if !ok {
+			return errors.New("invalid permission info for student")
+		}
+		if studentInfo.SchoolId == "" {
+			return errors.New("school id is empty for student")
+		}
+		school, _ := GetSchool(studentInfo.SchoolId)
+		if school == nil {
+			return errors.New("unregistered school id")
+		}
+		if studentInfo.Grade == 0 {
+			return errors.New("grade is empty for student")
+		}
+		if studentInfo.Class == 0 {
+			return errors.New("class is empty for student")
+		}
+		if studentInfo.Number == 0 {
+			return errors.New("number is empty for student")
+		}
+	case models.TEACHER:
+		teacherInfo, ok := account.PermissionInfo.(models.TeacherInfo)
+		if !ok {
+			return errors.New("invalid permission info for teacher")
+		}
+		if teacherInfo.SchoolId == "" {
+			return errors.New("school id is empty for teacher")
+		}
+	case models.ADMIN:
+		_, ok := account.PermissionInfo.(models.AdminInfo)
+		if !ok {
+			return errors.New("invalid permission info for admin")
+		}
+	default:
+		return errors.New("invalid permission level")
+	}
+	return nil
 }

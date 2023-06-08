@@ -1,6 +1,11 @@
 package handlers
 
 import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"golang.org/x/oauth2"
+	"io"
 	"net/http"
 	"os"
 
@@ -8,6 +13,77 @@ import (
 	"github.com/username/schoolapp/db"
 	"github.com/username/schoolapp/utils"
 )
+
+var Oauth2Application *oauth2.Config = nil
+
+func OAuthRedirect(ctx *gin.Context) {
+	url := Oauth2Application.AuthCodeURL("state", oauth2.AccessTypeOffline)
+	ctx.Redirect(http.StatusTemporaryRedirect, url)
+}
+
+func OnOAuth(ctx *gin.Context) {
+	code := ctx.Query("code")
+
+	tok, err := Oauth2Application.Exchange(context.TODO(), code)
+	if err != nil {
+		ctx.JSON(500, err)
+		return
+	}
+
+	client := Oauth2Application.Client(context.TODO(), tok)
+
+	response, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+
+	if err != nil {
+		ctx.JSON(500, err)
+		return
+	}
+
+	contents, _, err := utils.ReadAll(response.Body)
+
+	if err != nil && err != io.EOF {
+		ctx.JSON(500, err)
+		return
+	}
+
+	parsingMap := make(map[string]string)
+
+	err = json.Unmarshal([]byte(contents), &parsingMap)
+
+	email, hasEmail := parsingMap["email"]
+
+	if !hasEmail {
+		ctx.JSON(500, "missing email!")
+		return
+	}
+
+	account, err := db.GetAccountByEmail(&email)
+	if err != nil && err != sql.ErrNoRows {
+		ctx.JSON(500, err)
+		return
+	}
+
+	SecretKey := os.Getenv("SECRET_KEY")
+	if account == nil {
+		// 유저가 구글 로그인할 때 사용한 이메일을 다시 반환하여 프론트엔드에서 자동으로 이메일란을 채워놓을 수 있도록 함
+		encrypted, err := utils.EncryptJWT(email, "email", SecretKey)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{"email": encrypted})
+	} else {
+		token, err := utils.EncryptJWT(account.UserId, "user_id", SecretKey)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+			return
+		}
+
+		// OAuth로 로그인
+		ctx.JSON(http.StatusOK, gin.H{"token": token})
+	}
+}
 
 // Login handles the POST /auth/login endpoint
 func Login(c *gin.Context) {
@@ -31,7 +107,7 @@ func Login(c *gin.Context) {
 
 	hashpw := []byte(loginData.Password)
 	pw, err := utils.HashPassword(hashpw)
-	userpw := []byte(user.Password)
+	userpw := user.Password
 
 	// Verify password
 	if !utils.VerifyPassword(pw, userpw) {
@@ -47,5 +123,6 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	// 이메일로 로그인
 	c.JSON(http.StatusOK, gin.H{"token": token})
 }
