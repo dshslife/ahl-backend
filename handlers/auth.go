@@ -2,8 +2,12 @@ package handlers
 
 import (
 	"context"
+	"crypto/rsa"
+	"crypto/x509"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"github.com/gin-gonic/gin"
 	"github.com/username/schoolapp/db"
 	"github.com/username/schoolapp/utils"
@@ -13,6 +17,22 @@ import (
 )
 
 var Oauth2Application *oauth2.Config = nil
+
+var base64Key string
+
+func GetPublicKey(ctx *gin.Context) {
+	if base64Key == "" {
+		bytes := x509.MarshalPKCS1PublicKey(&utils.PRIVATE.PublicKey)
+		block := pem.Block{
+			Type:  "PUBLIC KEY",
+			Bytes: bytes,
+		}
+
+		base64Key = base64.StdEncoding.EncodeToString(pem.EncodeToMemory(&block))
+	}
+
+	ctx.Data(http.StatusOK, "application/octet-stream", []byte(base64Key))
+}
 
 func OAuthRedirect(ctx *gin.Context) {
 	url := Oauth2Application.AuthCodeURL("state", oauth2.AccessTypeOffline)
@@ -89,11 +109,17 @@ func Login(c *gin.Context) {
 		Email    string `json:"email" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
-	err := c.BindJSON(&loginData)
+	auth := c.GetHeader("Authorization")
+	clientKey, _ := c.Get("client_key")
+	sent, err := utils.ClientToServer(auth, "account", clientKey.(*rsa.PublicKey))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
+	asMap := sent.(map[string]interface{})
+
+	loginData.Email = asMap["email"].(string)
+	loginData.Password = asMap["password"].(string)
 
 	// Get user from database
 	user, err := db.GetAccountByEmail(&loginData.Email)
@@ -102,12 +128,11 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	hashpw := []byte(loginData.Password)
-	pw, err := utils.HashPassword(hashpw)
 	userpw := user.Password
 
 	// Verify password
-	if !utils.VerifyPassword(pw, userpw) {
+
+	if !utils.VerifyPassword(userpw, []byte(loginData.Password)) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
 	}

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"crypto/rsa"
 	"database/sql"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
@@ -71,6 +72,7 @@ func CreateAccountUnsafe(c *gin.Context) {
 	}
 	account.Name = asMap["name"].(string)
 	account.Email = asMap["email"].(string)
+	password := asMap["password"].(string)
 
 	_, err = db.GetAccountByEmail(&account.Email)
 	if err != sql.ErrNoRows {
@@ -82,7 +84,7 @@ func CreateAccountUnsafe(c *gin.Context) {
 		return
 	}
 
-	passwordHash, err := utils.HashPassword([]byte(asMap["password"].(string)))
+	passwordHash, err := utils.HashPassword([]byte(password))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -165,7 +167,9 @@ func CreateAccount(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	decrypted, err := utils.ParseJWT(&contents, "account")
+	publicKey, _ := c.Get("client_key")
+
+	decrypted, err := utils.ParseJWT(&contents, "account", publicKey.(*rsa.PublicKey))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

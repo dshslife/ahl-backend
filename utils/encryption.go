@@ -28,7 +28,13 @@ func InitKeys() {
 
 	block, _ := pem.Decode(contents)
 
-	PRIVATE, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+	p, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+
+	if err != nil {
+		panic(err.Error())
+	}
+
+	PRIVATE = p.(*rsa.PrivateKey)
 }
 
 // ServerToClient 패킷을 서버에서 클라이언트로 보낼 준비를 함
@@ -59,7 +65,7 @@ func ServerToClient(payload interface{}, claim string, clientKey rsa.PublicKey) 
 // 2. 클라이언트가 서버 공개키로 패킷을 암호화함 -> 서버만 열람하도록 제한할 수 있음
 // 3. 서버가 이를 서버 비밀키로 암호화를 해제함
 // 4. 서버가 클라이언트 공개 키로 제대로 된 클라이언트가 보냈는지 확인함 :D
-func ClientToServer(jwe string, claim string, clientKey rsa.PublicKey) (interface{}, error) {
+func ClientToServer(jwe string, claim string, clientKey *rsa.PublicKey) (interface{}, error) {
 	encrypted, err := jose.ParseEncrypted(jwe)
 	if err != nil {
 		return nil, err
@@ -71,12 +77,33 @@ func ClientToServer(jwe string, claim string, clientKey rsa.PublicKey) (interfac
 	}
 	asString := string(decrypted)
 
-	contents, err := ParseJWT(&asString, claim)
+	contents, err := ParseJWT(&asString, claim, clientKey)
 	if err != nil {
 		return nil, err
 	}
 
 	return contents, nil
+}
+
+func SignJWTWithKey(toEncrypt interface{}, claim string, key *rsa.PrivateKey) (string, error) {
+	// Define the expiration time for the token
+	expirationTime := time.Now().Add(24 * time.Hour).Unix()
+
+	// Create a new claims instance
+	claims := jwt.MapClaims{}
+	claims[claim] = toEncrypt
+	claims["exp"] = expirationTime
+
+	// Create a new token instance using the claims
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+
+	// Sign the token with the secret key
+	signedToken, err := token.SignedString(key)
+	if err != nil {
+		return "", err
+	}
+
+	return signedToken, nil
 }
 
 func SignJWT(toEncrypt interface{}, claim string) (string, error) {
@@ -100,30 +127,30 @@ func SignJWT(toEncrypt interface{}, claim string) (string, error) {
 	return signedToken, nil
 }
 
-// ParseJWT verifies a JWT token and decrypts its contents
-func ParseJWT(encrypted *string, claim string) (interface{}, error) {
-	// Verify the JWT encrypted
-	VerifiedToken, err := VerifyJWT(*encrypted)
+// ParseJWT JWT 서명을 확인하고 내용 분석
+func ParseJWT(signed *string, claim string, senderKey *rsa.PublicKey) (interface{}, error) {
+	// Verify the JWT signed
+	VerifiedToken, err := VerifyJWT(*signed, senderKey)
 	if err != nil {
 		return "", err
 	}
 
 	claims := VerifiedToken.Claims.(jwt.MapClaims)
 
-	// Extract the user ID from the encrypted claims
+	// Extract the user ID from the signed claims
 	contents, ok := claims[claim]
 	if !ok {
-		return "", fmt.Errorf("error: extracting %s from encrypted", claim)
+		return "", fmt.Errorf("error: extracting %s from signed", claim)
 	}
 
 	return contents, nil
 }
 
-func VerifyJWT(tokenString string) (*jwt.Token, error) {
+func VerifyJWT(tokenString string, senderKey *rsa.PublicKey) (*jwt.Token, error) {
 	// Define the expected signing method and secret key
-	signingMethod := jwt.SigningMethodHS256
+	signingMethod := jwt.SigningMethodRS256
 	keyFunc := func(token *jwt.Token) (interface{}, error) {
-		return PRIVATE, nil
+		return senderKey, nil
 	}
 
 	// Parse the JWT token string

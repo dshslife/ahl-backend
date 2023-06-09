@@ -1,6 +1,10 @@
 package middlewares
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
 	"github.com/google/uuid"
 	"github.com/username/schoolapp/utils"
 	"net/http"
@@ -13,6 +17,11 @@ import (
 func CheckAuthHeader(c *gin.Context) {
 	// /auth로 시작하는 URL 다 무시
 	if strings.HasPrefix(c.Request.URL.Path, "/auth") {
+		c.Next()
+		return
+	}
+	if c.Request.URL.Path == "/publickey" {
+		c.Next()
 		return
 	}
 
@@ -25,7 +34,8 @@ func CheckAuthHeader(c *gin.Context) {
 	}
 
 	token := authHeader[7:]
-	id, err := utils.ParseJWT(&token, "user_id")
+	publicKey, _ := c.Get("client_key") // 이미 아래에서 확인하니까... 오류 안나겠지?
+	id, err := utils.ParseJWT(&token, "user_id", publicKey.(*rsa.PublicKey))
 	if err != nil {
 		// 이 미친놈들이 오류 반환하다가 또 오류가 날 수도 있냐
 		// c.AbortWithError()......... >:(
@@ -53,6 +63,11 @@ func CheckAuthHeader(c *gin.Context) {
 func VerifyToken(c *gin.Context) {
 	// /auth로 시작하는 URL 다 무시
 	if strings.HasPrefix(c.Request.URL.Path, "/auth") {
+		c.Next()
+		return
+	}
+	if c.Request.URL.Path == "/publickey" {
+		c.Next()
 		return
 	}
 
@@ -65,7 +80,8 @@ func VerifyToken(c *gin.Context) {
 	}
 
 	// Verify JWT token
-	id, err := utils.ParseJWT(&tokenString, "user_id")
+	publicKey, _ := c.Get("client_key")
+	id, err := utils.ParseJWT(&tokenString, "user_id", publicKey.(*rsa.PublicKey))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 		c.Abort()
@@ -81,6 +97,45 @@ func VerifyToken(c *gin.Context) {
 
 	// Set user ID in request context
 	c.Set("user_id", userID)
+
+	c.Next()
+}
+
+func EnforceClientJWTPubKey(c *gin.Context) {
+	if c.Request.URL.Path == "/publickey" {
+		c.Next()
+		return
+	}
+
+	encoded := c.GetHeader("Client-Public-Key")
+	if encoded == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing RSA public key"})
+		c.Abort()
+		return
+	}
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if encoded == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unable to parse provided key"})
+		c.Abort()
+		return
+	}
+
+	block, _ := pem.Decode(decoded)
+
+	if block.Type != "PUBLIC KEY" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Key is not RSA public key"})
+		c.Abort()
+		return
+	}
+
+	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Key is not valid RSA public key"})
+		c.Abort()
+		return
+	}
+
+	c.Set("client_key", publicKey)
 
 	c.Next()
 }
